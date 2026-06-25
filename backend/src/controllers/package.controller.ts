@@ -532,10 +532,10 @@ export class PackageController {
     private static buildListResponse(items: PackageListItem[]): CollectionResponse<PackageListItem> {
         if (items.length === 0) {
             return {
-                code: 404,
-                success: false,
+                code: 200,
+                success: true,
                 message: 'There are no packages matching given criteria.',
-                errorMessage: 'No packages found.',
+                errorMessage: '',
                 data: [],
                 count: 0,
             };
