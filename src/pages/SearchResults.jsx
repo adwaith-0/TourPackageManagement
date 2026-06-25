@@ -58,7 +58,7 @@ export default function SearchResults() {
 
     if (!filters.to || !filters.departure) {
       // Load all packages by querying known destinations for today's date
-      const defaultDestinations = ['Alappuzha', 'Thiruvananthapuram', 'Munnar', 'Wayanad', 'Kochi', 'adw']
+      const defaultDestinations = ['Alappuzha']
       const customDestinations = []
       try {
         const stored = localStorage.getItem('touriq_custom_destinations')
