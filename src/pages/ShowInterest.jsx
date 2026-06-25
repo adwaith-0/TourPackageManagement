@@ -91,6 +91,18 @@ export default function ShowInterest() {
     return () => { active = false }
   }, [id, paramTier, paramTravelers])
 
+  // Populate form with user info once they sign in
+  useEffect(() => {
+    if (state.user) {
+      setForm((f) => ({
+        ...f,
+        customerName: f.customerName || state.user.name || "",
+        phone: f.phone || state.user.phone || "",
+        email: f.email || state.user.email || "",
+      }))
+    }
+  }, [state.user])
+
   const isOwnPackage = !!state.user && pkg && state.user.id === pkg.agentId
   const hasExisting = !!state.user && pkg && (state.inquiries || []).some(
     (inq) => inq.userId === state.user.id && inq.packageId === pkg.id && (inq.status === "New" || inq.status === "Responded")
@@ -117,6 +129,27 @@ export default function ShowInterest() {
           <span className="material-symbols-outlined text-[80px] text-outline">error</span>
           <h1 className="text-2xl font-bold text-primary mt-4">{error || "Package Not Found"}</h1>
           <Link to="/search" className="inline-block mt-6 px-6 py-3 bg-accent text-white rounded-lg font-semibold">Browse Packages</Link>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  // Traveler Login Required Wall
+  if (!state.user) {
+    return (
+      <div className="min-h-screen bg-surface">
+        <TopBar /><Navbar />
+        <div className="max-w-[1280px] mx-auto px-lg py-20 text-center">
+          <span className="material-symbols-outlined text-[80px] text-accent">lock</span>
+          <h1 className="text-2xl font-bold text-primary mt-4">Sign In Required</h1>
+          <p className="text-on-surface-variant mt-2">Please sign in to your traveler account to express interest in this package.</p>
+          <button
+            onClick={() => dispatch({ type: "OPEN_LOGIN_MODAL" })}
+            className="inline-block mt-6 px-6 py-3 bg-accent text-white rounded-lg font-semibold hover:bg-accent/90 transition-colors"
+          >
+            Sign In Now
+          </button>
         </div>
         <Footer />
       </div>

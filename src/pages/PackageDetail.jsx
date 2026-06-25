@@ -13,7 +13,7 @@ import { getPackageDetailsAPI } from "../utils/packageApi"
 export default function PackageDetail() {
   const { id } = useParams()
   const location = useLocation()
-  const { state } = useApp()
+  const { state, dispatch } = useApp()
 
   const [pkg, setPkg] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -338,9 +338,18 @@ export default function PackageDetail() {
               <span className="price-tag text-xl text-accent">₹{(activeTierData?.price || 0).toLocaleString("en-IN")}</span>
               <span className="text-xs text-on-surface-variant ml-1">/person ({activeTierData?.name || "Standard"})</span>
             </div>
-            <Link to={`/show-interest/${pkg.id}${location.search}`} className="px-6 py-3 bg-accent text-white font-bold rounded-xl cta-glow">
-              Show Interest
-            </Link>
+            {!state.user ? (
+              <button
+                onClick={() => dispatch({ type: "OPEN_LOGIN_MODAL" })}
+                className="px-6 py-3 bg-accent text-white font-bold rounded-xl cta-glow"
+              >
+                Show Interest
+              </button>
+            ) : (
+              <Link to={`/show-interest/${pkg.id}${location.search}`} className="px-6 py-3 bg-accent text-white font-bold rounded-xl cta-glow">
+                Show Interest
+              </Link>
+            )}
           </div>
         )}
       </div>

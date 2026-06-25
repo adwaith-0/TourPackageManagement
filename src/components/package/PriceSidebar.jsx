@@ -4,7 +4,7 @@ import { useApp } from "../../context/AppContext"
 import { formatPhoneForCall } from "../../utils/phone"
 
 export default function PriceSidebar({ pkg, activeTier, setActiveTier }) {
-  const { state } = useApp()
+  const { state, dispatch } = useApp()
 
   if (!pkg) return null
 
@@ -63,6 +63,13 @@ export default function PriceSidebar({ pkg, activeTier, setActiveTier }) {
             <p className="text-xs font-semibold text-primary">This is your package.</p>
             <Link to="/agent/dashboard#packages" className="text-xs text-accent font-bold hover:underline mt-1 block">View in Dashboard</Link>
           </div>
+        ) : !state.user ? (
+          <button
+            onClick={() => dispatch({ type: "OPEN_LOGIN_MODAL" })}
+            className="block w-full py-3.5 bg-accent text-white text-center font-bold rounded-xl hover:bg-accent/90 transition-all cta-glow mb-3"
+          >
+            Show Interest
+          </button>
         ) : (
           <Link
             to={`/show-interest/${pkg.id}?tier=${encodeURIComponent(currentTier?.name || "")}`}
@@ -84,13 +91,20 @@ export default function PriceSidebar({ pkg, activeTier, setActiveTier }) {
         )}
 
         {pkg.provider?.phone && (
-          <a
-            href={`tel:${formatPhoneForCall(pkg.provider.phone)}`}
+          <button
+            onClick={(e) => {
+              if (!state.user) {
+                e.preventDefault()
+                dispatch({ type: "OPEN_LOGIN_MODAL" })
+              } else {
+                window.location.href = `tel:${formatPhoneForCall(pkg.provider.phone)}`
+              }
+            }}
             className="flex items-center justify-center gap-2 w-full py-2.5 mt-2 border border-surface-container-high rounded-xl text-sm font-medium text-primary hover:bg-surface-container-low transition-colors"
           >
             <span className="material-symbols-outlined text-[18px]">call</span>
             Call Provider
-          </a>
+          </button>
         )}
       </div>
 

@@ -1,7 +1,14 @@
 import { formatPhoneForWhatsApp } from "../../utils/phone"
+import { useApp } from "../../context/AppContext"
 
 export default function WhatsAppButton({ phone, message = "", label = "WhatsApp", fullWidth = false, size = "md" }) {
+  const { state, dispatch } = useApp()
+
   const handleClick = () => {
+    if (!state.user) {
+      dispatch({ type: "OPEN_LOGIN_MODAL" })
+      return
+    }
     const formattedPhone = formatPhoneForWhatsApp(phone)
     const url = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(message)}`
     window.open(url, "_blank")
