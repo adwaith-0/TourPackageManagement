@@ -53,14 +53,6 @@ export default function LoginModal() {
             <span className="text-primary">TOUR</span><span className="text-accent">IQ</span>
           </div>
 
-          {/* Auth Error */}
-          {state.authError && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">error</span>
-              {state.authError}
-            </div>
-          )}
-
           {view === "login" && <LoginForm setView={setView} navigate={navigate} />}
           {view === "signup" && <SignupForm setView={setView} navigate={navigate} />}
           {view === "forgot" && <ForgotPasswordForm setView={setView} />}
@@ -110,11 +102,37 @@ function LoginForm({ setView, navigate }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPass, setShowPass] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [localErr, setLocalErr] = useState("")
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!email.trim() || !password.trim()) return
-    dispatch({ type: "LOGIN", payload: { email: email.trim(), password } })
+    setLocalErr("")
+    setLoading(true)
+
+    try {
+      const response = await fetch("http://localhost:3001/users/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          password: password,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        dispatch({ type: "SET_USER", payload: result.data })
+      } else {
+        setLocalErr(result.errorMessage || result.message || "Login failed")
+      }
+    } catch (err) {
+      setLocalErr("Could not connect to server. Is the backend running?")
+    }
+
+    setLoading(false)
   }
 
   // Watch for successful login
@@ -133,6 +151,12 @@ function LoginForm({ setView, navigate }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <h3 className="text-lg font-bold text-primary">Sign In</h3>
+
+      {localErr && (
+        <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[16px]">error</span>{localErr}
+        </div>
+      )}
 
       <div>
         <label className="block text-xs font-semibold text-gray-500 mb-1.5">Email Address</label>
@@ -157,8 +181,8 @@ function LoginForm({ setView, navigate }) {
         <button type="button" onClick={() => setView("forgot")} className="text-xs text-accent font-semibold hover:underline">Forgot Password?</button>
       </div>
 
-      <button type="submit" className="w-full bg-primary text-white font-bold h-13 py-3 rounded-lg uppercase tracking-wider hover:bg-primary/90 transition-colors cta-glow">
-        Sign In
+      <button type="submit" disabled={loading} className="w-full bg-primary text-white font-bold h-13 py-3 rounded-lg uppercase tracking-wider hover:bg-primary/90 transition-colors cta-glow disabled:opacity-60">
+        {loading ? "Signing in..." : "Sign In"}
       </button>
 
       <div className="flex items-center my-3">
@@ -187,7 +211,7 @@ function SignupForm({ setView, navigate }) {
   const [localErr, setLocalErr] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setLocalErr("")
     if (!name.trim()) { setLocalErr("Name is required"); return }
@@ -197,13 +221,32 @@ function SignupForm({ setView, navigate }) {
     if (password !== confirmPass) { setLocalErr("Passwords do not match"); return }
 
     setLoading(true)
-    setTimeout(() => {
-      dispatch({
-        type: "SIGNUP",
-        payload: { email: email.trim(), password, name: name.trim(), phone: phone.trim(), type: "personal" },
+
+    try {
+      const response = await fetch("http://localhost:3001/users/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          type: "Traveler",
+          email: email.trim(),
+          phoneNumber: phone.trim(),
+          password: password,
+        }),
       })
-      setLoading(false)
-    }, 300)
+
+      const result = await response.json()
+
+      if (result.success) {
+        dispatch({ type: "SET_USER", payload: result.data })
+      } else {
+        setLocalErr(result.errorMessage || result.message || "Signup failed")
+      }
+    } catch (err) {
+      setLocalErr("Could not connect to server. Is the backend running?")
+    }
+
+    setLoading(false)
   }
 
   useEffect(() => {

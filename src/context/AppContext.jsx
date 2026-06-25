@@ -96,51 +96,22 @@ function appReducer(state, action) {
     }
 
     // ── Auth ──────────────────────────────────────────────
-    case "SIGNUP": {
-      const { email, password, name, phone, type } = action.payload
-      // Check if user already exists
-      if (state.users.find((u) => u.email === email)) {
-        return { ...state, authError: "An account with this email already exists" }
+    // SET_USER: receives user data from the backend API and maps field names
+    case "SET_USER": {
+      const apiUser = action.payload
+      const mappedUser = {
+        id: apiUser.userId,
+        name: apiUser.name,
+        email: apiUser.email,
+        phone: apiUser.phoneNumber,
+        type: apiUser.type === "Traveler" ? "personal" : apiUser.type === "Agent" ? "agent" : apiUser.type,
+        createdAt: apiUser.createdAt,
       }
-      const newUser = {
-        id: `user-${Date.now()}`,
-        email,
-        password,
-        name,
-        phone,
-        type, // 'personal' | 'agent'
-        createdAt: new Date().toISOString(),
-      }
-      const updatedUsers = [...state.users, newUser]
-      // Auto login after signup
-      const safeUser = { ...newUser }
-      delete safeUser.password
       return {
         ...state,
-        users: updatedUsers,
-        user: safeUser,
+        user: mappedUser,
         authError: null,
         loginModal: { ...state.loginModal, isOpen: false },
-      }
-    }
-
-    case "LOGIN": {
-      const { email, password } = action.payload
-      // Check for matching password (plain text comparison)
-      const found = state.users.find((u) => {
-        if (u.email.toLowerCase() !== email.toLowerCase()) return false
-        return u.password === password
-      })
-      if (!found) {
-        return { ...state, authError: "Invalid email or password" }
-      }
-      const safeUser = { ...found }
-      delete safeUser.password
-      return { 
-        ...state, 
-        user: safeUser, 
-        authError: null,
-        loginModal: { ...state.loginModal, isOpen: false }
       }
     }
 
