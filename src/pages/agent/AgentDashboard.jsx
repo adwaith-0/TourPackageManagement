@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom"
 import AgentSidebar from "../../components/agent/AgentSidebar"
 import { useApp } from "../../context/AppContext"
 import { formatPhoneForCall } from "../../utils/phone"
+import { listPackagesByUserAPI, activatePackageAPI, inactivatePackageAPI } from "../../utils/packageApi"
 
 export default function AgentDashboard() {
   const { state, dispatch } = useApp()
@@ -101,15 +102,30 @@ export default function AgentDashboard() {
     }
   }, [state.user])
 
-  // Only show THIS agent's packages (excluding archived ones)
-  const myPackages = (state.agentPackages || []).filter(
-    (p) => p.agentId === state.user?.id && !p.archived
-  )
+  const [myPackages, setMyPackages] = useState([])
+  const [loadingPackages, setLoadingPackages] = useState(true)
+  const [errorPackages, setErrorPackages] = useState(null)
+
+  const fetchPackages = () => {
+    if (!state.user?.id) return
+    listPackagesByUserAPI(state.user.id)
+      .then((data) => {
+        setMyPackages(data)
+        setLoadingPackages(false)
+      })
+      .catch((err) => {
+        console.error("Error fetching packages:", err)
+        setErrorPackages("Failed to load packages.")
+        setLoadingPackages(false)
+      })
+  }
+
+  useEffect(() => {
+    fetchPackages()
+  }, [state.user?.id])
 
   // Show inquiries for all of THIS agent's packages (including archived ones so history is preserved)
-  const myPackageIds = (state.agentPackages || [])
-    .filter((p) => p.agentId === state.user?.id)
-    .map((p) => p.id)
+  const myPackageIds = myPackages.map((p) => p.id)
   const myInquiries = (state.inquiries || []).filter(
     (inq) => myPackageIds.includes(inq.packageId)
   )
@@ -119,9 +135,25 @@ export default function AgentDashboard() {
     dispatch({ type: "UPDATE_INQUIRY_STATUS", payload: { id: inquiryId, status: newStatus } })
   }
 
-  const handleDelete = (pkgId) => {
-    if (window.confirm("Are you sure you want to delete this package? This action cannot be undone.")) {
-      dispatch({ type: "DELETE_PACKAGE", payload: pkgId })
+  const handleActivate = async (pkgId) => {
+    try {
+      await activatePackageAPI(pkgId)
+      fetchPackages()
+    } catch (err) {
+      console.error("Error activating package:", err)
+      alert(err.message || "Failed to activate package")
+    }
+  }
+
+  const handleInactivate = async (pkgId) => {
+    if (window.confirm("Are you sure you want to deactivate/inactivate this package? It will not show up in traveler search results.")) {
+      try {
+        await inactivatePackageAPI(pkgId)
+        fetchPackages()
+      } catch (err) {
+        console.error("Error inactivating package:", err)
+        alert(err.message || "Failed to inactivate package")
+      }
     }
   }
 
@@ -167,8 +199,12 @@ export default function AgentDashboard() {
               <h2 className="text-lg font-bold text-primary">My Packages</h2>
               <Link to="/agent/create-package" className="text-sm text-accent font-semibold hover:underline">+ Create New</Link>
             </div>
-
-            {myPackages.length === 0 ? (
+            {loadingPackages ? (
+              <div className="bg-white rounded-2xl border border-surface-container-high p-12 text-center">
+                <span className="material-symbols-outlined text-[40px] text-outline animate-spin">sync</span>
+                <p className="text-sm font-semibold text-outline mt-2">Loading packages...</p>
+              </div>
+            ) : myPackages.length === 0 ? (
               <div className="bg-white rounded-2xl border border-surface-container-high p-12 text-center">
                 <div className="w-20 h-20 bg-accent/10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="material-symbols-outlined text-[40px] text-accent">add_box</span>
@@ -183,6 +219,7 @@ export default function AgentDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {myPackages.map((pkg) => {
                   const pkgInquiries = myInquiries.filter((inq) => inq.packageId === pkg.id)
+                  const isActive = pkg.status !== 'inactive'
                   return (
                     <div key={pkg.id} className="bg-white rounded-xl border border-surface-container-high overflow-hidden hover:shadow-elevated transition-all group">
                       <div className="flex">
@@ -199,7 +236,11 @@ export default function AgentDashboard() {
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-bold text-primary text-sm line-clamp-1">{pkg.title || "Untitled"}</h3>
-                              <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-0.5 rounded-full">Active</span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                              }`}>
+                                {isActive ? 'Active' : 'Inactive'}
+                              </span>
                             </div>
                             <p className="text-xs text-on-surface-variant flex items-center gap-1">
                               <span className="material-symbols-outlined text-[14px]">location_on</span>
@@ -207,7 +248,7 @@ export default function AgentDashboard() {
                             </p>
                             <div className="flex items-center gap-3 mt-2 text-xs text-on-surface-variant">
                               {pkg.duration && <span>{pkg.duration.nights}N/{pkg.duration.days}D</span>}
-                              {pkg.tiers?.luxury?.price > 0 && <span className="price-tag text-accent">₹{pkg.tiers.luxury.price.toLocaleString("en-IN")}</span>}
+                              {pkg.startingPrice > 0 && <span className="price-tag text-accent">₹{pkg.startingPrice.toLocaleString("en-IN")}</span>}
                               <span className="flex items-center gap-0.5">
                                 <span className="material-symbols-outlined text-[12px]">mail</span>
                                 {pkgInquiries.length} inquiries
@@ -215,16 +256,27 @@ export default function AgentDashboard() {
                             </div>
                           </div>
                           <div className="flex gap-2 mt-2 w-full">
-                            <Link to={`/agent/preview/${pkg.id}`} className="text-xs font-semibold text-primary bg-primary/5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors">View</Link>
+                            <Link to={`/package/${pkg.id}`} className="text-xs font-semibold text-primary bg-primary/5 px-3 py-1.5 rounded-lg hover:bg-primary/10 transition-colors">View</Link>
                             <Link to={`/agent/edit-package/${pkg.id}`} className="text-xs font-semibold text-accent bg-accent/5 px-3 py-1.5 rounded-lg hover:bg-accent/10 transition-colors">Edit</Link>
-                            <button 
-                              type="button"
-                              onClick={() => handleDelete(pkg.id)} 
-                              className="text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors ml-auto flex items-center gap-1"
-                            >
-                              <span className="material-symbols-outlined text-[14px]">delete</span>
-                              Delete
-                            </button>
+                            {isActive ? (
+                              <button 
+                                type="button"
+                                onClick={() => handleInactivate(pkg.id)} 
+                                className="text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors ml-auto flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">block</span>
+                                Inactivate
+                              </button>
+                            ) : (
+                              <button 
+                                type="button"
+                                onClick={() => handleActivate(pkg.id)} 
+                                className="text-xs font-semibold text-green-600 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors ml-auto flex items-center gap-1"
+                              >
+                                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                                Activate
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -232,8 +284,8 @@ export default function AgentDashboard() {
                   )
                 })}
               </div>
-            )}
-          </section>
+            )
+          }       </section>
 
           {/* Inquiries — with scroll target ID */}
           <section id="section-inquiries" className="scroll-mt-20">

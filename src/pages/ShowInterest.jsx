@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom"
 import TopBar from "../components/Topbar"
 import Navbar from "../components/Navbar"
@@ -6,6 +6,7 @@ import Footer from "../components/Footer"
 import WhatsAppButton from "../components/ui/WhatsAppButton"
 import { useApp } from "../context/AppContext"
 import { formatPhoneForWhatsApp } from "../utils/phone"
+import { getPackageDetailsAPI } from "../utils/packageApi"
 
 export default function ShowInterest() {
   const { id } = useParams()
@@ -13,8 +14,16 @@ export default function ShowInterest() {
   const [searchParams] = useSearchParams()
   const { state, dispatch } = useApp()
 
-  // Find package in active or archived lists
-  const pkg = (state.agentPackages || []).find((p) => p.id === id) || state.packages.find((p) => p.id === id)
+  const [pkg, setPkg] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // Read search criteria query params for pre-population
+  const paramFrom = searchParams.get("from") || ""
+  const paramDeparture = searchParams.get("departure") || ""
+  const paramReturn = searchParams.get("return") || ""
+  const paramTravelers = parseInt(searchParams.get("travelers")) || null
+  const paramTier = searchParams.get("tier") || ""
 
   const normalizedTiers = pkg
     ? (Array.isArray(pkg.tiers) 
@@ -24,13 +33,6 @@ export default function ShowInterest() {
             { name: "Luxury", price: pkg.tiers?.luxury?.price || 0 }
           ].filter(t => t.price > 0))
     : []
-
-  // Read search criteria query params for pre-population
-  const paramFrom = searchParams.get("from") || ""
-  const paramDeparture = searchParams.get("departure") || ""
-  const paramReturn = searchParams.get("return") || ""
-  const paramTravelers = parseInt(searchParams.get("travelers")) || null
-  const paramTier = searchParams.get("tier") || ""
 
   const defaultTier = paramTier && normalizedTiers.some(t => t.name === paramTier) 
     ? paramTier 
@@ -43,26 +45,77 @@ export default function ShowInterest() {
     fromDate: paramDeparture || "",
     toDate: paramReturn || "",
     fromPlace: paramFrom || "",
-    toPlace: pkg?.destination || "",
-    travelers: paramTravelers || pkg?.groupSize?.min || 1,
+    toPlace: "",
+    travelers: paramTravelers || 1,
     tier: defaultTier,
     specialRequirements: "",
     whatsappUpdates: true,
   })
   const [errors, setErrors] = useState({})
 
-  const isOwnPackage = !!state.user && state.user.id === pkg?.agentId
-  const hasExisting = !!state.user && (state.inquiries || []).some(
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
+
+    getPackageDetailsAPI(id)
+      .then((data) => {
+        if (active) {
+          if (data) {
+            setPkg(data)
+            const tiers = Array.isArray(data.tiers) ? data.tiers : []
+            const selectedTier = paramTier && tiers.some(t => t.name === paramTier)
+              ? paramTier
+              : tiers[0]?.name || "Standard"
+
+            setForm((f) => ({
+              ...f,
+              toPlace: data.destination || "",
+              travelers: paramTravelers || data.groupSize?.min || 1,
+              tier: selectedTier
+            }))
+          } else {
+            setError("Package not found")
+          }
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          console.error("Error loading package details:", err)
+          setError("Failed to load package details.")
+          setLoading(false)
+        }
+      })
+
+    return () => { active = false }
+  }, [id, paramTier, paramTravelers])
+
+  const isOwnPackage = !!state.user && pkg && state.user.id === pkg.agentId
+  const hasExisting = !!state.user && pkg && (state.inquiries || []).some(
     (inq) => inq.userId === state.user.id && inq.packageId === pkg.id && (inq.status === "New" || inq.status === "Responded")
   )
 
-  if (!pkg) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-surface">
+        <TopBar /><Navbar />
+        <div className="max-w-[1280px] mx-auto px-lg py-20 text-center animate-pulse">
+          <span className="material-symbols-outlined text-[80px] text-outline animate-spin mb-4 block">sync</span>
+          <h1 className="text-xl font-bold text-primary">Loading package...</h1>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (error || !pkg) {
     return (
       <div className="min-h-screen bg-surface">
         <TopBar /><Navbar />
         <div className="max-w-[1280px] mx-auto px-lg py-20 text-center">
           <span className="material-symbols-outlined text-[80px] text-outline">error</span>
-          <h1 className="text-2xl font-bold text-primary mt-4">Package Not Found</h1>
+          <h1 className="text-2xl font-bold text-primary mt-4">{error || "Package Not Found"}</h1>
           <Link to="/search" className="inline-block mt-6 px-6 py-3 bg-accent text-white rounded-lg font-semibold">Browse Packages</Link>
         </div>
         <Footer />

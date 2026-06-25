@@ -1,17 +1,38 @@
 import { Link } from "react-router-dom"
+import { useState, useEffect } from "react"
 import TopBar from "../components/Topbar"
 import Navbar from "../components/Navbar"
 import Footer from "../components/Footer"
 import { useApp } from "../context/AppContext"
 import { formatPhoneForWhatsApp } from "../utils/phone"
+import { getPackageDetailsAPI } from "../utils/packageApi"
 
 export default function MyInquiries() {
   const { state, dispatch } = useApp()
+  const [packagesMap, setPackagesMap] = useState({})
 
   // Show inquiries made by this user
   const myInquiries = (state.inquiries || []).filter(
     (inq) => inq.userId === state.user?.id
   )
+
+  useEffect(() => {
+    if (myInquiries.length === 0) return
+    const uniqueIds = [...new Set(myInquiries.map((inq) => inq.packageId))]
+    
+    uniqueIds.forEach((pkgId) => {
+      if (packagesMap[pkgId]) return // Already fetched
+      getPackageDetailsAPI(pkgId)
+        .then((data) => {
+          if (data) {
+            setPackagesMap((prev) => ({ ...prev, [pkgId]: data }))
+          }
+        })
+        .catch((err) => {
+          console.error(`Error loading package ${pkgId}:`, err)
+        })
+    })
+  }, [myInquiries, packagesMap])
 
   if (!state.user) {
     return (
@@ -53,7 +74,7 @@ export default function MyInquiries() {
         ) : (
           <div className="space-y-4">
             {myInquiries.slice().reverse().map((inq) => {
-              const pkg = (state.agentPackages || []).find((p) => p.id === inq.packageId) || (state.packages || []).find((p) => p.id === inq.packageId)
+              const pkg = packagesMap[inq.packageId]
               return (
                 <div key={inq.id} className="bg-white rounded-xl border border-surface-container-high overflow-hidden hover:shadow-elevated transition-all">
                   <div className="flex flex-col md:flex-row">

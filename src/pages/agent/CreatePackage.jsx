@@ -7,6 +7,7 @@ import { useApp } from "../../context/AppContext"
 import ImageGallery from "../../components/package/ImageGallery"
 import ItineraryTimeline from "../../components/package/ItineraryTimeline"
 import InclusionsList from "../../components/package/InclusionsList"
+import { createPackageAPI, updatePackageAPI, getPackageDetailsAPI } from "../../utils/packageApi"
 
 const STEPS = ["Basic Info", "Itinerary", "Gallery", "Inclusions", "Preview", "Publish"]
 
@@ -42,6 +43,8 @@ function ensureNewFormat(p, user) {
       avatar: user?.name?.[0] || "A",
     },
     status: p?.status || "pending",
+    startDate: p?.startDate || "",
+    endDate: p?.endDate || "",
   }
 
   // Tiers migration
@@ -138,37 +141,44 @@ export default function CreatePackage() {
     }
   }, [state.user, navigate, dispatch])
 
-  // Load existing package for editing, or start blank
-  const existingPkg = id ? state.packages.find((p) => p.id === id) : null
-  const [pkg, setPkg] = useState(() => ensureNewFormat(existingPkg, state.user))
+  const [pkg, setPkg] = useState(() => ensureNewFormat(null, state.user))
+  const [loading, setLoading] = useState(!!id)
+  const [error, setError] = useState(null)
+  const [publishing, setPublishing] = useState(false)
 
-  const [prevId, setPrevId] = useState(id)
-  const [prevUserId, setPrevUserId] = useState(state.user?.id)
+  // Load existing package for editing
+  useEffect(() => {
+    if (!id) {
+      setPkg(ensureNewFormat(null, state.user))
+      setLoading(false)
+      return
+    }
 
-  if (id !== prevId) {
-    setPrevId(id)
-    setPkg(ensureNewFormat(existingPkg, state.user))
-  }
+    let active = true
+    setLoading(true)
+    setError(null)
 
-  if (!id && state.user && state.user.id !== prevUserId) {
-    setPrevUserId(state.user.id)
-    setPkg((p) => {
-      if (!p.provider.name) {
-        return {
-          ...p,
-          provider: {
-            ...p.provider,
-            name: state.user.name || "",
-            phone: state.user.phone || "",
-            whatsapp: state.user.phone || "",
-            email: state.user.email || "",
-            avatar: state.user.name?.[0] || "A",
+    getPackageDetailsAPI(id)
+      .then((data) => {
+        if (active) {
+          if (data) {
+            setPkg(ensureNewFormat(data, state.user))
+          } else {
+            setError("Package not found")
           }
+          setLoading(false)
         }
-      }
-      return p
-    })
-  }
+      })
+      .catch((err) => {
+        if (active) {
+          console.error("Error loading package:", err)
+          setError("Failed to load package details.")
+          setLoading(false)
+        }
+      })
+
+    return () => { active = false }
+  }, [id, state.user])
 
   const update = (field, val) => {
     setPkg((p) => ({ ...p, [field]: val }))
@@ -199,6 +209,11 @@ export default function CreatePackage() {
       if (!pkg.title.trim()) errs.title = "Required"
       if (!pkg.fromLocation?.trim()) errs.fromLocation = "Required"
       if (!pkg.destination.trim()) errs.destination = "Required"
+      if (!pkg.startDate) errs.startDate = "Required"
+      if (!pkg.endDate) errs.endDate = "Required"
+      if (pkg.startDate && pkg.endDate && new Date(pkg.startDate) > new Date(pkg.endDate)) {
+        errs.endDate = "End date must be after Start date"
+      }
       if (Object.keys(errs).length > 0) { setErrors(errs); return }
     }
     if (step === 1) {
@@ -217,18 +232,58 @@ export default function CreatePackage() {
   }
   const goBack = () => setStep((s) => Math.max(s - 1, 0))
 
-  const handlePublish = () => {
-    const finalPkg = {
-      ...pkg,
-      provider: { ...pkg.provider, verified: true },
-    }
+  const handlePublish = async () => {
+    if (publishing) return
+    setPublishing(true)
+    try {
+      const finalPkg = {
+        ...pkg,
+        provider: { ...pkg.provider, verified: true },
+      }
 
-    if (existingPkg) {
-      dispatch({ type: "UPDATE_PACKAGE", payload: finalPkg })
-    } else {
-      dispatch({ type: "ADD_PACKAGE", payload: finalPkg })
+      if (id) {
+        await updatePackageAPI(finalPkg, state.user?.id)
+      } else {
+        await createPackageAPI(finalPkg, state.user?.id)
+      }
+      navigate("/agent/dashboard")
+    } catch (err) {
+      console.error("Error publishing package:", err)
+      alert(err.message || "Failed to publish package. Please check required fields.")
+    } finally {
+      setPublishing(false)
     }
-    navigate("/agent/dashboard")
+  }
+
+  if (loading) {
+    return (
+      <div className="h-screen flex overflow-hidden">
+        <AgentSidebar activePage="create" />
+        <main className="flex-1 md:ml-[256px] flex items-center justify-center bg-surface">
+          <div className="text-center">
+            <span className="material-symbols-outlined text-[48px] text-outline animate-spin">sync</span>
+            <p className="text-sm font-semibold text-outline mt-2">Loading package details...</p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="h-screen flex overflow-hidden">
+        <AgentSidebar activePage="create" />
+        <main className="flex-1 md:ml-[256px] flex items-center justify-center bg-surface">
+          <div className="text-center">
+            <span className="material-symbols-outlined text-[48px] text-red-500">error</span>
+            <p className="text-sm font-semibold text-red-500 mt-2">{error}</p>
+            <button onClick={() => navigate("/agent/dashboard")} className="mt-4 px-4 py-2 bg-primary text-white rounded-lg text-xs font-semibold">
+              Back to Dashboard
+            </button>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -254,7 +309,7 @@ export default function CreatePackage() {
           {step === 2 && <StepGallery pkg={pkg} update={update} />}
           {step === 3 && <StepInclusions pkg={pkg} setPkg={setPkg} />}
           {step === 4 && <StepPreview pkg={pkg} />}
-          {step === 5 && <StepPublish pkg={pkg} updateNested={updateNested} onPublish={handlePublish} isEdit={!!id} />}
+          {step === 5 && <StepPublish pkg={pkg} updateNested={updateNested} onPublish={handlePublish} isEdit={!!id} publishing={publishing} />}
         </div>
 
         {/* Bottom Nav */}
@@ -268,9 +323,9 @@ export default function CreatePackage() {
                 Next: {STEPS[step + 1]}
               </button>
             ) : (
-              <button onClick={handlePublish} className="px-4 md:px-8 py-2.5 bg-accent text-white font-bold rounded-lg hover:bg-accent/90 transition-colors cta-glow flex items-center gap-2 text-sm md:text-base whitespace-nowrap">
-                <span className="material-symbols-outlined text-[18px]">publish</span>
-                {id ? "Update" : "Publish"}
+              <button onClick={handlePublish} disabled={publishing} className="px-4 md:px-8 py-2.5 bg-accent text-white font-bold rounded-lg hover:bg-accent/90 transition-colors cta-glow flex items-center gap-2 text-sm md:text-base whitespace-nowrap disabled:opacity-55 disabled:cursor-wait">
+                <span className="material-symbols-outlined text-[18px]">{publishing ? "hourglass_empty" : "publish"}</span>
+                {publishing ? "Saving..." : (id ? "Update" : "Publish")}
               </button>
             )}
           </div>
@@ -326,6 +381,15 @@ function StepBasicInfo({ pkg, update, updateNested, errors }) {
             </FormField>
             <FormField label="Max Group">
               <input type="number" min="1" value={pkg.groupSize.max} onChange={(e) => updateNested("groupSize.max", parseInt(e.target.value) || 10)} className={iCls()} />
+            </FormField>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label="Start Date *" error={errors.startDate}>
+              <input type="date" value={pkg.startDate || ""} onChange={(e) => update("startDate", e.target.value)} className={iCls(errors.startDate)} required />
+            </FormField>
+            <FormField label="End Date *" error={errors.endDate}>
+              <input type="date" value={pkg.endDate || ""} onChange={(e) => update("endDate", e.target.value)} className={iCls(errors.endDate)} required />
             </FormField>
           </div>
 
@@ -760,7 +824,7 @@ function StepInclusions({ pkg, setPkg }) {
   )
 }
 
-function StepPublish({ pkg, updateNested, onPublish, isEdit }) {
+function StepPublish({ pkg, updateNested, onPublish, isEdit, publishing }) {
   return (
     <div className="space-y-6 animate-fade-in-up">
       <Card title="Provider Details" icon="person">
@@ -779,7 +843,7 @@ function StepPublish({ pkg, updateNested, onPublish, isEdit }) {
           </FormField>
         </div>
       </Card>
-
+ 
       {/* Preview Card */}
       <div className="bg-primary rounded-2xl p-6 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -787,9 +851,9 @@ function StepPublish({ pkg, updateNested, onPublish, isEdit }) {
           <h3 className="text-lg font-bold mb-2">Everything looks good?</h3>
           <p className="text-white/70 text-sm mb-4">Review how your package will appear to travelers before publishing.</p>
           <div className="flex gap-3">
-            <button onClick={onPublish} className="px-6 py-3 bg-accent text-white font-bold rounded-xl hover:bg-accent/90 transition-all cta-glow flex items-center gap-2">
-              <span className="material-symbols-outlined text-[18px]">publish</span>
-              {isEdit ? "Update Package" : "Publish Package"}
+            <button onClick={onPublish} disabled={publishing} className="px-6 py-3 bg-accent text-white font-bold rounded-xl hover:bg-accent/90 transition-all cta-glow flex items-center gap-2 disabled:opacity-55 disabled:cursor-wait">
+              <span className="material-symbols-outlined text-[18px]">{publishing ? "hourglass_empty" : "publish"}</span>
+              {publishing ? "Saving..." : (isEdit ? "Update Package" : "Publish Package")}
             </button>
           </div>
         </div>

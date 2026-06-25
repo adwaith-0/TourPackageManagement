@@ -1,18 +1,21 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useSearchParams } from "react-router-dom"
 import TopBar from "../components/Topbar"
 import Navbar from "../components/Navbar"
 import Footer from "../components/Footer"
 import PackageCard from "../components/package/PackageCard"
-import FilterSidebar from "../components/ui/FilterSidebar"
 import SearchBar from "../components/ui/SearchBar"
 import { useApp } from "../context/AppContext"
+import { listPackagesAPI, toBackendDate } from "../utils/packageApi"
 
 export default function SearchResults() {
   const { state } = useApp()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState("recommended")
+
+  const [packages, setPackages] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
 
   const [filters, setFilters] = useState({
     to: searchParams.get("to") || "",
@@ -20,11 +23,6 @@ export default function SearchResults() {
     departure: searchParams.get("departure") || "",
     returnDate: searchParams.get("return") || "",
     travelers: searchParams.get("travelers") || "",
-    minPrice: "",
-    maxPrice: "",
-    durations: [],
-    minRating: null,
-    types: [],
   })
 
   // Helper to update URL parameters reactively
@@ -37,7 +35,6 @@ export default function SearchResults() {
     }
     setSearchParams(params, { replace: true })
   }
-
   // Keep state synced if query parameters change (e.g. clicking popular link)
   const searchParamsStr = searchParams.toString()
   const [prevSearchParamsStr, setPrevSearchParamsStr] = useState(searchParamsStr)
@@ -53,6 +50,82 @@ export default function SearchResults() {
       travelers: searchParams.get("travelers") || "",
     }))
   }
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
+
+    if (!filters.to || !filters.departure) {
+      // Load all packages by querying known destinations for today's date
+      const defaultDestinations = ['Alappuzha', 'Thiruvananthapuram', 'Munnar', 'Wayanad', 'Kochi', 'adw']
+      const customDestinations = []
+      try {
+        const stored = localStorage.getItem('touriq_custom_destinations')
+        if (stored) {
+          customDestinations.push(...JSON.parse(stored))
+        }
+      } catch (e) {
+        console.error(e)
+      }
+      
+      const destinations = [...new Set([...defaultDestinations, ...customDestinations])]
+      const today = new Date()
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+      const formattedDate = `${String(today.getDate()).padStart(2, '0')}-${months[today.getMonth()]}-${today.getFullYear()}`
+
+      Promise.all(
+        destinations.map(dest => listPackagesAPI(dest, formattedDate).catch(() => []))
+      ).then((results) => {
+        if (active) {
+          const allPkgs = results.flat()
+          // Deduplicate packages by packageId (id)
+          const seen = new Set()
+          const uniquePkgs = allPkgs.filter(p => {
+            if (seen.has(p.id)) return false
+            seen.add(p.id)
+            return true
+          })
+          setPackages(uniquePkgs)
+          setLoading(false)
+        }
+      }).catch((err) => {
+        if (active) {
+          console.error("Failed to fetch all packages:", err)
+          setError("Failed to load packages.")
+          setPackages([])
+          setLoading(false)
+        }
+      })
+
+      return () => {
+        active = false
+      }
+    }
+
+    const formattedDate = toBackendDate(filters.departure)
+
+    listPackagesAPI(filters.to, formattedDate)
+      .then((data) => {
+        if (active) {
+          setPackages(data)
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          console.error("Failed to fetch packages:", err)
+          setError("Failed to fetch packages from server.")
+          setPackages([])
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      active = false
+    }
+  }, [filters.to, filters.departure])
+
 
   // Handle search submit from custom SearchBar
   const handleSearch = (searchData) => {
@@ -108,12 +181,12 @@ export default function SearchResults() {
 
   // Filter + Sort packages
   const results = useMemo(() => {
-    let pkgs = [...state.packages]
+    let pkgs = [...packages]
 
     const getStartPrice = (p) => {
-      const prices = [p.tiers?.budget?.price, p.tiers?.luxury?.price].filter(
-        (val) => typeof val === "number" && val > 0
-      )
+      const prices = (p.tiers && Array.isArray(p.tiers) ? p.tiers : Object.values(p.tiers || {}))
+        .map(t => t?.price)
+        .filter(p => typeof p === 'number' && p > 0)
       return prices.length > 0 ? Math.min(...prices) : 0
     }
 
@@ -130,8 +203,6 @@ export default function SearchResults() {
         fuzzyMatch(q, p.dropoff)
       )
     }
-
-
 
     // Departure and return dates (Duration verification)
     if (filters.departure && filters.returnDate) {
@@ -157,38 +228,6 @@ export default function SearchResults() {
       })
     }
 
-    // Price range
-    if (filters.minPrice) {
-      pkgs = pkgs.filter((p) => getStartPrice(p) >= Number(filters.minPrice))
-    }
-    if (filters.maxPrice) {
-      pkgs = pkgs.filter((p) => getStartPrice(p) <= Number(filters.maxPrice))
-    }
-
-    // Duration
-    if (filters.durations.length > 0) {
-      pkgs = pkgs.filter((p) => {
-        const n = p.duration?.nights || 0
-        return filters.durations.some((d) => {
-          if (d === "1 Night") return n === 1
-          if (d === "2-3 Nights") return n >= 2 && n <= 3
-          if (d === "4-6 Nights") return n >= 4 && n <= 6
-          if (d === "7+ Nights") return n >= 7
-          return false
-        })
-      })
-    }
-
-    // Rating
-    if (filters.minRating) {
-      pkgs = pkgs.filter((p) => (p.rating || 0) >= filters.minRating)
-    }
-
-    // Type
-    if (filters.types.length > 0) {
-      pkgs = pkgs.filter((p) => filters.types.includes(p.type))
-    }
-
     // Sort
     switch (sortBy) {
       case "price-low":
@@ -209,7 +248,7 @@ export default function SearchResults() {
     }
 
     return pkgs
-  }, [state.packages, filters, sortBy])
+  }, [packages, filters, sortBy])
 
   // Active filter chips
   const activeFilters = []
@@ -258,11 +297,6 @@ export default function SearchResults() {
       }
     })
   }
-  if (filters.minPrice) activeFilters.push({ label: `Min ₹${filters.minPrice}`, clear: () => setFilters((f) => ({ ...f, minPrice: "" })) })
-  if (filters.maxPrice) activeFilters.push({ label: `Max ₹${filters.maxPrice}`, clear: () => setFilters((f) => ({ ...f, maxPrice: "" })) })
-  filters.durations.forEach((d) => activeFilters.push({ label: d, clear: () => setFilters((f) => ({ ...f, durations: f.durations.filter((x) => x !== d) })) }))
-  filters.types.forEach((t) => activeFilters.push({ label: t, clear: () => setFilters((f) => ({ ...f, types: f.types.filter((x) => x !== t) })) }))
-  if (filters.minRating) activeFilters.push({ label: `${filters.minRating}+ stars`, clear: () => setFilters((f) => ({ ...f, minRating: null })) })
 
   const handleReset = () => {
     setFilters({
@@ -270,12 +304,7 @@ export default function SearchResults() {
       from: "",
       departure: "",
       returnDate: "",
-      travelers: "",
-      minPrice: "",
-      maxPrice: "",
-      durations: [],
-      minRating: null,
-      types: []
+      travelers: ""
     })
     setSearchParams({}, { replace: true })
   }
@@ -312,17 +341,6 @@ export default function SearchResults() {
             <p className="text-sm text-on-surface-variant mt-1">{results.length} package{results.length !== 1 ? "s" : ""} found</p>
           </div>
           <div className="flex items-center gap-3">
-            {/* Mobile filter toggle */}
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="md:hidden flex items-center gap-2 px-4 py-2 border border-surface-container-high rounded-lg text-sm font-medium"
-            >
-              <span className="material-symbols-outlined text-[18px]">tune</span>
-              Filters
-              {activeFilters.length > 0 && (
-                <span className="bg-accent text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">{activeFilters.length}</span>
-              )}
-            </button>
             {/* Sort */}
             <select
               value={sortBy}
@@ -357,31 +375,55 @@ export default function SearchResults() {
         )}
 
         {/* Content */}
-        <div className="flex gap-8">
-          {/* Sidebar - Desktop always, Mobile toggle */}
-          <div className={`${showFilters ? "block" : "hidden"} md:block w-full md:w-[260px] flex-shrink-0`}>
-            <FilterSidebar filters={filters} setFilters={setFilters} onReset={handleReset} />
-          </div>
-
-          {/* Results Grid */}
-          <div className="flex-1">
-            {results.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-surface-container-high p-12 text-center">
-                <span className="material-symbols-outlined text-[64px] text-outline mb-4 block">travel_explore</span>
-                <h3 className="text-lg font-bold text-primary mb-2">No packages found</h3>
-                <p className="text-on-surface-variant text-sm mb-6">Try adjusting your search or filters.</p>
-                <button onClick={handleReset} className="px-6 py-3 bg-accent text-white rounded-lg font-semibold hover:bg-accent/90 transition-colors">
-                  Clear Filters
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-                {results.map((pkg) => (
-                  <PackageCard key={pkg.id} pkg={pkg} />
-                ))}
-              </div>
-            )}
-          </div>
+        <div className="w-full">
+          {loading ? (
+            <div className="bg-white rounded-2xl border border-surface-container-high p-12 text-center shadow-soft animate-pulse">
+              <span className="material-symbols-outlined text-[64px] text-outline mb-4 block animate-spin">sync</span>
+              <h3 className="text-lg font-bold text-primary mb-2">Loading Packages...</h3>
+              <p className="text-on-surface-variant text-sm">Fetching tour packages from the server...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-white rounded-2xl border border-surface-container-high p-12 text-center shadow-soft">
+              <span className="material-symbols-outlined text-[64px] text-red-500 mb-4 block">error_outline</span>
+              <h3 className="text-lg font-bold text-red-500 mb-2">Error Loading Packages</h3>
+              <p className="text-on-surface-variant text-sm mb-6">{error}</p>
+              <button 
+                onClick={() => {
+                  const formattedDate = toBackendDate(filters.departure)
+                  setLoading(true)
+                  setError(null)
+                  listPackagesAPI(filters.to, formattedDate)
+                    .then(setPackages)
+                    .catch(err => setError(err.message || "Failed to load packages"))
+                    .finally(() => setLoading(false))
+                }} 
+                className="px-6 py-3 bg-accent text-white rounded-lg font-semibold hover:bg-accent/90 transition-colors"
+              >
+                Retry Search
+              </button>
+            </div>
+          ) : (!filters.to || !filters.departure) && packages.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-surface-container-high p-12 text-center shadow-soft">
+              <span className="material-symbols-outlined text-[64px] text-accent mb-4 block">search_insights</span>
+              <h3 className="text-lg font-bold text-primary mb-2">Search Tour Packages</h3>
+              <p className="text-on-surface-variant text-sm max-w-md mx-auto">Please enter both a destination and departure date in the search bar above to fetch live packages from the server.</p>
+            </div>
+          ) : results.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-surface-container-high p-12 text-center shadow-soft">
+              <span className="material-symbols-outlined text-[64px] text-outline mb-4 block">travel_explore</span>
+              <h3 className="text-lg font-bold text-primary mb-2">No packages found</h3>
+              <p className="text-on-surface-variant text-sm mb-6">Try adjusting your search parameters.</p>
+              <button onClick={handleReset} className="px-6 py-3 bg-accent text-white rounded-lg font-semibold hover:bg-accent/90 transition-colors">
+                Clear Search
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {results.map((pkg) => (
+                <PackageCard key={pkg.id} pkg={pkg} />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

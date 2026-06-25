@@ -8,6 +8,7 @@ import ItineraryTimeline from "../../components/package/ItineraryTimeline"
 import InclusionsList from "../../components/package/InclusionsList"
 import WhatsAppButton from "../../components/ui/WhatsAppButton"
 import { useApp } from "../../context/AppContext"
+import { getPackageDetailsAPI, inactivatePackageAPI } from "../../utils/packageApi"
 
 export default function PackagePreview() {
   const { id } = useParams()
@@ -22,7 +23,37 @@ export default function PackagePreview() {
     }
   }, [state.user, navigate, dispatch])
 
-  const pkg = state.packages.find((p) => p.id === id)
+  const [pkg, setPkg] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [activeTierIdx, setActiveTierIdx] = useState(0)
+
+  useEffect(() => {
+    let active = true
+    setLoading(true)
+    setError(null)
+
+    getPackageDetailsAPI(id)
+      .then((data) => {
+        if (active) {
+          if (data) {
+            setPkg(data)
+          } else {
+            setError("Package not found")
+          }
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          console.error("Error loading package details for preview:", err)
+          setError("Failed to load package details.")
+          setLoading(false)
+        }
+      })
+
+    return () => { active = false }
+  }, [id])
 
   // Normalize tiers to new array format
   const normalizedTiers = pkg
@@ -34,26 +65,42 @@ export default function PackagePreview() {
           ].filter(t => t.price > 0))
     : []
 
-  const [activeTierIdx, setActiveTierIdx] = useState(0)
   const activeTierData = normalizedTiers[activeTierIdx] || normalizedTiers[0] || { name: "", price: 0, hotel: "", specialInclusions: "", specialExclusions: "" }
 
   const displayItinerary = pkg?.itinerary || pkg?.itineraries?.luxury || pkg?.itineraries?.budget || []
 
-
-  const handleDelete = () => {
-    if (window.confirm("Are you sure you want to delete this package? This action cannot be undone.")) {
-      dispatch({ type: "DELETE_PACKAGE", payload: pkg.id })
-      navigate("/agent/dashboard")
+  const handleDelete = async () => {
+    if (window.confirm("Are you sure you want to delete (deactivate) this package? It will not show up in traveler search results.")) {
+      try {
+        await inactivatePackageAPI(pkg.id)
+        navigate("/agent/dashboard")
+      } catch (err) {
+        console.error("Error deleting package:", err)
+        alert(err.message || "Failed to delete package")
+      }
     }
   }
 
-  if (!pkg) {
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-surface">
+        <TopBar /><Navbar />
+        <div className="max-w-[1280px] mx-auto px-lg py-20 text-center animate-pulse">
+          <span className="material-symbols-outlined text-[80px] text-outline animate-spin mb-4 block">sync</span>
+          <h1 className="text-xl font-bold text-primary">Loading package preview...</h1>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (error || !pkg) {
     return (
       <div className="min-h-screen bg-surface">
         <TopBar /><Navbar />
         <div className="max-w-[1280px] mx-auto px-lg py-20 text-center">
           <span className="material-symbols-outlined text-[80px] text-outline">inventory_2</span>
-          <h1 className="text-2xl font-bold text-primary mt-4">Package Not Found</h1>
+          <h1 className="text-2xl font-bold text-primary mt-4">{error || "Package Not Found"}</h1>
           <Link to="/agent/dashboard" className="inline-block mt-6 px-6 py-3 bg-accent text-white rounded-lg font-semibold">Back to Dashboard</Link>
         </div>
         <Footer />

@@ -3,6 +3,7 @@ import cors from 'cors';
 import 'dotenv/config';
 import mongoose from 'mongoose';
 import UserRoutes from './routes/user.routes.js';
+import PackageRoutes from './routes/package.routes.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -20,6 +21,10 @@ app.get('/', (req, res) => {
 });
 
 app.use('/users', UserRoutes.router(), (req, res) => {
+    res.status(404).send('Not Found');
+});
+
+app.use('/packages', PackageRoutes.router(), (req, res) => {
     res.status(404).send('Not Found');
 });
 

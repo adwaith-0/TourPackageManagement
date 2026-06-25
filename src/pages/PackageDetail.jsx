@@ -8,12 +8,45 @@ import ItineraryTimeline from "../components/package/ItineraryTimeline"
 import InclusionsList from "../components/package/InclusionsList"
 import PriceSidebar from "../components/package/PriceSidebar"
 import { useApp } from "../context/AppContext"
+import { getPackageDetailsAPI } from "../utils/packageApi"
 
 export default function PackageDetail() {
   const { id } = useParams()
   const location = useLocation()
   const { state } = useApp()
-  const pkg = state.packages.find((p) => p.id === id)
+
+  const [pkg, setPkg] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [activeTierIdx, setActiveTierIdx] = useState(0)
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    let active = true
+    setLoading(true)
+    setError(null)
+
+    getPackageDetailsAPI(id)
+      .then((data) => {
+        if (active) {
+          if (data) {
+            setPkg(data)
+          } else {
+            setError("Package not found")
+          }
+          setLoading(false)
+        }
+      })
+      .catch((err) => {
+        if (active) {
+          console.error("Error loading package details:", err)
+          setError("Failed to load package details.")
+          setLoading(false)
+        }
+      })
+
+    return () => { active = false }
+  }, [id])
 
   // Normalize tiers to new array format
   const normalizedTiers = pkg
@@ -25,24 +58,33 @@ export default function PackageDetail() {
           ].filter(t => t.price > 0))
     : []
 
-  const [activeTierIdx, setActiveTierIdx] = useState(0)
   const activeTierData = normalizedTiers[activeTierIdx] || normalizedTiers[0] || { name: "", price: 0, hotel: "", specialInclusions: "", specialExclusions: "" }
 
   const isOwnPackage = state.user?.id === pkg?.agentId
   const displayItinerary = pkg?.itinerary || pkg?.itineraries?.luxury || pkg?.itineraries?.budget || []
 
-  useEffect(() => {
-    window.scrollTo(0, 0)
-  }, [id])
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-surface">
+        <TopBar />
+        <Navbar />
+        <div className="max-w-[1280px] mx-auto px-lg py-20 text-center animate-pulse">
+          <span className="material-symbols-outlined text-[80px] text-outline animate-spin mb-4 block">sync</span>
+          <h1 className="text-xl font-bold text-primary">Loading package...</h1>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
 
-  if (!pkg) {
+  if (error || !pkg) {
     return (
       <div className="min-h-screen bg-surface">
         <TopBar />
         <Navbar />
         <div className="max-w-[1280px] mx-auto px-lg py-20 text-center">
           <span className="material-symbols-outlined text-[80px] text-outline">travel_explore</span>
-          <h1 className="text-2xl font-bold text-primary mt-4">Package Not Found</h1>
+          <h1 className="text-2xl font-bold text-primary mt-4">{error || "Package Not Found"}</h1>
           <p className="text-on-surface-variant mt-2">The package you're looking for doesn't exist.</p>
           <Link to="/search" className="inline-block mt-6 px-6 py-3 bg-accent text-white rounded-lg font-semibold hover:bg-accent/90 transition-colors">
             Browse Packages

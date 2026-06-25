@@ -33,8 +33,6 @@ function getInitialState() {
     })
   }
 
-  // All agent packages (each has agentId)
-  const agentPackages = parsed.agentPackages || []
   // All inquiries (each has userId and packageId)
   const inquiries = parsed.inquiries || []
   // Shopping experiences
@@ -57,21 +55,14 @@ function getInitialState() {
 
   return {
     users,
-    packages: buildPackages(agentPackages),
-    agentPackages,
+    packages: [],
+    agentPackages: [],
     inquiries,
     shoppingExperiences,
     agentApplications,
     user: currentUser,
     loginModal: { isOpen: false, accountType: "personal", view: "login" },
   }
-}
-
-// Show sample packages only when no agent has uploaded any packages yet
-function buildPackages(agentPackages) {
-  const active = agentPackages.filter(p => !p.archived)
-  if (active.length > 0) return [...active]
-  return [...samplePackages].map(p => ({ ...p, status: "approved" }))
 }
 
 // ─── Reducer ─────────────────────────────────────────────────────────────────
@@ -107,11 +98,33 @@ function appReducer(state, action) {
         type: apiUser.type === "Traveler" ? "personal" : apiUser.type === "Agent" ? "agent" : apiUser.type,
         createdAt: apiUser.createdAt,
       }
+      // Keep users list in sync for persistence on refresh
+      const userExists = state.users.some((u) => u.id === mappedUser.id)
+      const updatedUsers = userExists
+        ? state.users.map((u) => (u.id === mappedUser.id ? { ...u, ...mappedUser } : u))
+        : [...state.users, mappedUser]
       return {
         ...state,
+        users: updatedUsers,
         user: mappedUser,
         authError: null,
         loginModal: { ...state.loginModal, isOpen: false },
+      }
+    }
+
+    case "UPGRADE_TO_AGENT": {
+      if (!state.user) return state
+      const updatedUser = {
+        ...state.user,
+        type: "agent",
+      }
+      const updatedUsers = state.users.map((u) =>
+        u.id === state.user.id ? { ...u, type: "agent" } : u
+      )
+      return {
+        ...state,
+        user: updatedUser,
+        users: updatedUsers,
       }
     }
 
@@ -345,13 +358,12 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const toStore = {
       users: state.users,
-      agentPackages: state.agentPackages,
       inquiries: state.inquiries,
       shoppingExperiences: state.shoppingExperiences || [],
       agentApplications: state.agentApplications || [],
     }
     localStorage.setItem("touriq_state", JSON.stringify(toStore))
-  }, [state.users, state.agentPackages, state.inquiries, state.shoppingExperiences, state.agentApplications])
+  }, [state.users, state.inquiries, state.shoppingExperiences, state.agentApplications])
 
 
   return (

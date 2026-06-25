@@ -32,6 +32,9 @@ export default function AgentApplication() {
     pincode: ""
   });
 
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
   };
@@ -40,14 +43,52 @@ export default function AgentApplication() {
     navigate(-1);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.agency_name || !formData.business_type || !formData.pan_number || !formData.address || !formData.city || !formData.state || !formData.pincode || !formData.phone) {
+    setError("");
+
+    if (!formData.agency_name || !formData.pan_number || !formData.phone) {
+      setError("Please fill out all required fields.");
       return;
     }
-    
-    dispatch({ type: "APPLY_FOR_AGENT", payload: formData });
-    navigate("/");
+
+    setLoading(true);
+    try {
+      // Backend validations require non-empty strings for website, licenceNumber, specialities.
+      // We dynamically generate safe fallbacks if they are empty in the form.
+      const safeWebsite = formData.website.trim() || `https://www.${formData.agency_name.replace(/\s+/g, "").toLowerCase()}.com`;
+      const safeLicence = formData.license_number.trim() || `LIC${Math.floor(100000 + Math.random() * 900000)}`;
+      const safeSpecialities = formData.specialties.trim() || "Tour Packages, Sightseeing";
+      const parsedExperience = parseInt(formData.experience) || 0;
+
+      const response = await fetch("http://localhost:3001/users/agent/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: state.user.email,
+          agencyName: formData.agency_name.trim(),
+          website: safeWebsite,
+          experience: parsedExperience,
+          licenceNumber: safeLicence,
+          panNumber: formData.pan_number.trim(),
+          specialities: safeSpecialities,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        dispatch({ type: "UPGRADE_TO_AGENT" });
+        navigate("/agent/dashboard");
+      } else {
+        setError(result.errorMessage || result.message || "Agent registration failed.");
+      }
+    } catch (err) {
+      console.error("Agent registration error:", err);
+      setError("Could not connect to server. Is the backend running?");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!state.user) return null;
@@ -95,6 +136,13 @@ export default function AgentApplication() {
               <h2 className="font-headline-md text-headline-md text-primary mb-2">Business Details</h2>
               <p className="font-body-md text-body-md text-on-surface-variant">Provide your agency's legal details to unlock the marketplace.</p>
             </div>
+
+            {error && (
+              <div className="mb-md p-3.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 flex items-center gap-2">
+                <span className="material-symbols-outlined text-[16px]">error</span>
+                <span>{error}</span>
+              </div>
+            )}
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="flex-grow flex flex-col gap-2xl">
@@ -203,11 +251,11 @@ export default function AgentApplication() {
 
               {/* Form Footer Actions */}
               <div className="mt-xl pt-md border-t border-surface-container-highest flex flex-col-reverse sm:flex-row justify-between items-center gap-md">
-                <button onClick={handleBack} className="w-full sm:w-auto px-6 py-3 rounded-lg border-2 border-primary text-primary font-label-md text-label-md font-bold hover:bg-surface-container-low transition-colors text-center cursor-pointer" type="button">
+                <button onClick={handleBack} disabled={loading} className="w-full sm:w-auto px-6 py-3 rounded-lg border-2 border-primary text-primary font-label-md text-label-md font-bold hover:bg-surface-container-low transition-colors text-center cursor-pointer disabled:opacity-50" type="button">
                   Back
                 </button>
-                <button type="submit" className="w-full sm:w-auto px-6 py-3 rounded-lg bg-secondary-container text-on-secondary-container font-label-md text-label-md font-bold hover:bg-secondary hover:text-on-secondary transition-colors text-center cursor-pointer shadow-sm">
-                  Save & Continue
+                <button type="submit" disabled={loading} className="w-full sm:w-auto px-6 py-3 rounded-lg bg-secondary-container text-on-secondary-container font-label-md text-label-md font-bold hover:bg-secondary hover:text-on-secondary transition-colors text-center cursor-pointer shadow-sm disabled:opacity-60">
+                  {loading ? "Registering..." : "Save & Continue"}
                 </button>
               </div>
             </form>
