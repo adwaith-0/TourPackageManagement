@@ -273,7 +273,7 @@ async function enhanceListWithDetails(listItems) {
     return await Promise.all(
       listItems.map(async (item) => {
         try {
-          const detailRes = await fetch(`${API_BASE}/packages/details?packageId=${encodeURIComponent(item.id)}`)
+          const detailRes = await fetch(`${API_BASE}/packages/details?packageId=${encodeURIComponent(item.id)}&t=${Date.now()}`)
           const detailJson = await detailRes.json()
           if (detailJson.success && detailJson.data?.gallery && detailJson.data.gallery.length > 0) {
             return {
@@ -346,6 +346,7 @@ export async function listPackagesAPI(place, date) {
   const params = new URLSearchParams()
   if (place) params.set('place', place)
   if (date) params.set('date', date)
+  params.set('t', Date.now().toString())
   const res = await fetch(`${API_BASE}/packages/list?${params.toString()}`)
   const json = await res.json()
   if (!json.success) return []
@@ -354,7 +355,7 @@ export async function listPackagesAPI(place, date) {
 }
 
 export async function getPackageDetailsAPI(packageId) {
-  const res = await fetch(`${API_BASE}/packages/details?packageId=${encodeURIComponent(packageId)}`)
+  const res = await fetch(`${API_BASE}/packages/details?packageId=${encodeURIComponent(packageId)}&t=${Date.now()}`)
   const json = await res.json()
   if (!json.success) return null
   return mapBackendToFrontend(json.data)
@@ -363,8 +364,8 @@ export async function getPackageDetailsAPI(packageId) {
 export async function listPackagesByUserAPI(userId) {
   try {
     const [activeRes, inactiveRes] = await Promise.all([
-      fetch(`${API_BASE}/packages/listByUser?userId=${encodeURIComponent(userId)}&status=Active`),
-      fetch(`${API_BASE}/packages/listByUser?userId=${encodeURIComponent(userId)}&status=Inactive`)
+      fetch(`${API_BASE}/packages/listByUser?userId=${encodeURIComponent(userId)}&status=Active&t=${Date.now()}`),
+      fetch(`${API_BASE}/packages/listByUser?userId=${encodeURIComponent(userId)}&status=Inactive&t=${Date.now()}`)
     ])
     
     const activeJson = await activeRes.json()
