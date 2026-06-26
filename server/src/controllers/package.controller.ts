@@ -501,9 +501,9 @@ export class PackageController {
 
         const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/.exec(trimmed);
         if (!m) return null;
-        const day = Number(m[1]);
-        const monStr = m[2].toLowerCase();
-        const year = Number(m[3]);
+        const day = Number(m[1] || '0');
+        const monStr = (m[2] || '').toLowerCase();
+        const year = Number(m[3] || '0');
         if (!Number.isInteger(day) || !Number.isInteger(year) || day < 1 || day > 31) return null;
 
         const months: Record<string, number> = {
