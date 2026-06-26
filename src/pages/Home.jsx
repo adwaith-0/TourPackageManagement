@@ -63,11 +63,6 @@ export default function Home() {
                         New
                       </span>
                     </div>
-                    {pkg.duration && (
-                      <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs font-bold px-2 py-1 rounded backdrop-blur-sm">
-                        {pkg.duration.nights}N/{pkg.duration.days}D
-                      </div>
-                    )}
                   </div>
 
                   {/* Content */}

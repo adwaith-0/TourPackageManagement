@@ -236,7 +236,7 @@ export default function ShowInterest() {
           Back to Package Details
         </Link>
         <h1 className="font-headline-lg text-[28px] text-primary font-bold mb-1">Express Your Interest</h1>
-        <p className="text-on-surface-variant">{pkg.title} — {pkg.duration?.days}D/{pkg.duration?.nights}N in {pkg.destination}</p>
+        <p className="text-on-surface-variant">{pkg.title} — {pkg.duration?.nights} {pkg.duration?.nights === 1 ? 'Night' : 'Nights'} in {pkg.destination}</p>
 
         {/* Content */}
         <div className="flex flex-col lg:flex-row gap-8 mt-8">
@@ -379,13 +379,13 @@ export default function ShowInterest() {
                   <div className="absolute inset-0 bg-gradient-to-t from-primary/60 to-transparent" />
                   <div className="absolute bottom-3 left-3 text-white">
                     <p className="font-bold text-sm">{pkg.title}</p>
-                    <p className="text-xs text-white/80">{pkg.duration?.days}D/{pkg.duration?.nights}N • {pkg.destination}</p>
+                    <p className="text-xs text-white/80">{pkg.duration?.nights} {pkg.duration?.nights === 1 ? 'Night' : 'Nights'} &bull; {pkg.destination}</p>
                   </div>
                 </div>
                 <div className="p-4 space-y-3">
                   <div className="flex items-center gap-2 text-sm">
                     <span className="material-symbols-outlined text-[16px] text-accent">schedule</span>
-                    <span className="text-on-surface-variant">Duration: {pkg.duration?.nights}N / {pkg.duration?.days}D</span>
+                    <span className="text-on-surface-variant">Duration: {pkg.duration?.nights} {pkg.duration?.nights === 1 ? 'Night' : 'Nights'}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="material-symbols-outlined text-[16px] text-accent">location_on</span>

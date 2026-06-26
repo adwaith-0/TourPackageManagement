@@ -247,7 +247,7 @@ export default function AgentDashboard() {
                               {pkg.destination || "No destination"}
                             </p>
                             <div className="flex items-center gap-3 mt-2 text-xs text-on-surface-variant">
-                              {pkg.duration && <span>{pkg.duration.nights}N/{pkg.duration.days}D</span>}
+                              {pkg.duration && <span>{pkg.duration.nights} {pkg.duration.nights === 1 ? 'Night' : 'Nights'}</span>}
                               {pkg.startingPrice > 0 && <span className="price-tag text-accent">₹{pkg.startingPrice.toLocaleString("en-IN")}</span>}
                               <span className="flex items-center gap-0.5">
                                 <span className="material-symbols-outlined text-[12px]">mail</span>

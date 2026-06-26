@@ -53,7 +53,7 @@ export default function PriceSidebar({ pkg, activeTier, setActiveTier }) {
           )}
           {hotel && <p className="text-xs text-on-surface-variant mt-1">{hotel}</p>}
           {pkg.duration && (
-            <p className="text-xs text-outline mt-1">{pkg.duration.nights}N / {pkg.duration.days}D</p>
+            <p className="text-xs text-outline mt-1">{pkg.duration.nights} {pkg.duration.nights === 1 ? 'Night' : 'Nights'}</p>
           )}
         </div>
 

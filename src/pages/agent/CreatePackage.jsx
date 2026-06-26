@@ -45,6 +45,13 @@ function ensureNewFormat(p, user) {
     status: p?.status || "pending",
     startDate: p?.startDate || "",
     endDate: p?.endDate || "",
+    paymentDetails: p?.paymentDetails || {
+      upiId: "",
+      upiPhoneNumber: "",
+      accountNumber: "",
+      bank: "",
+      ifsc: ""
+    },
   }
 
   // Tiers migration
@@ -234,6 +241,14 @@ export default function CreatePackage() {
 
   const handlePublish = async () => {
     if (publishing) return
+    if (!pkg.paymentDetails?.upiId?.trim() ||
+        !pkg.paymentDetails?.upiPhoneNumber?.trim() ||
+        !pkg.paymentDetails?.accountNumber?.trim() ||
+        !pkg.paymentDetails?.bank?.trim() ||
+        !pkg.paymentDetails?.ifsc?.trim()) {
+      alert("Please fill in all required Payment Details (UPI ID, UPI Phone Number, Account Number, Bank Name, and IFSC Code) before publishing.")
+      return
+    }
     setPublishing(true)
     try {
       const finalPkg = {
@@ -365,16 +380,13 @@ function StepBasicInfo({ pkg, update, updateNested, errors }) {
             </FormField>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FormField label="Nights">
               <input type="number" min="1" max="30" value={pkg.duration.nights} onChange={(e) => {
                 const n = Math.max(1, Math.min(30, parseInt(e.target.value) || 1))
                 updateNested("duration.nights", n)
                 updateNested("duration.days", n + 1)
               }} className={iCls()} />
-            </FormField>
-            <FormField label="Days">
-              <input type="number" value={pkg.duration.days} readOnly className={iCls() + " bg-surface-container-low cursor-not-allowed"} />
             </FormField>
             <FormField label="Min Group">
               <input type="number" min="1" value={pkg.groupSize.min} onChange={(e) => updateNested("groupSize.min", parseInt(e.target.value) || 1)} className={iCls()} />
@@ -844,6 +856,26 @@ function StepPublish({ pkg, updateNested, onPublish, isEdit, publishing }) {
         </div>
       </Card>
  
+      <Card title="Payment Details" icon="payments">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField label="UPI ID *">
+            <input type="text" value={pkg.paymentDetails?.upiId || ""} onChange={(e) => updateNested("paymentDetails.upiId", e.target.value)} placeholder="e.g. name@bank" className={iCls()} required />
+          </FormField>
+          <FormField label="UPI Phone Number *">
+            <input type="tel" value={pkg.paymentDetails?.upiPhoneNumber || ""} onChange={(e) => updateNested("paymentDetails.upiPhoneNumber", e.target.value)} placeholder="e.g. 9494949494" className={iCls()} required />
+          </FormField>
+          <FormField label="Bank Account Number *">
+            <input type="text" value={pkg.paymentDetails?.accountNumber || ""} onChange={(e) => updateNested("paymentDetails.accountNumber", e.target.value)} placeholder="e.g. 909090909090909090" className={iCls()} required />
+          </FormField>
+          <FormField label="Bank Name *">
+            <input type="text" value={pkg.paymentDetails?.bank || ""} onChange={(e) => updateNested("paymentDetails.bank", e.target.value)} placeholder="e.g. SBI Ernakulam" className={iCls()} required />
+          </FormField>
+          <FormField label="IFSC Code *">
+            <input type="text" value={pkg.paymentDetails?.ifsc || ""} onChange={(e) => updateNested("paymentDetails.ifsc", e.target.value)} placeholder="e.g. SBIN0010376" className={iCls()} required />
+          </FormField>
+        </div>
+      </Card>
+ 
       {/* Preview Card */}
       <div className="bg-primary rounded-2xl p-6 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -865,7 +897,7 @@ function StepPublish({ pkg, updateNested, onPublish, isEdit, publishing }) {
           <SummaryRow label="Title" value={pkg.title || "—"} />
           <SummaryRow label="Starting From" value={pkg.fromLocation || "—"} />
           <SummaryRow label="Destination" value={pkg.destination || "—"} />
-          <SummaryRow label="Duration" value={pkg.duration ? `${pkg.duration.nights}N/${pkg.duration.days}D` : "—"} />
+          <SummaryRow label="Duration" value={pkg.duration ? `${pkg.duration.nights} ${pkg.duration.nights === 1 ? 'Night' : 'Nights'}` : "—"} />
           <SummaryRow label="Group Size" value={pkg.groupSize ? `${pkg.groupSize.min}–${pkg.groupSize.max}` : "—"} />
           
           {pkg.tiers?.map((t, idx) => (
@@ -875,6 +907,15 @@ function StepPublish({ pkg, updateNested, onPublish, isEdit, publishing }) {
               value={t.price ? `₹${t.price.toLocaleString("en-IN")} / person (${t.bedSize || "Twin Sharing"})` : "—"} 
             />
           ))}
+
+          {pkg.paymentDetails?.upiId && (
+            <>
+              <SummaryRow label="UPI ID" value={pkg.paymentDetails.upiId} />
+              <SummaryRow label="UPI Phone" value={pkg.paymentDetails.upiPhoneNumber || "—"} />
+              <SummaryRow label="Bank Name" value={pkg.paymentDetails.bank || "—"} />
+              <SummaryRow label="Account No." value={pkg.paymentDetails.accountNumber || "—"} />
+            </>
+          )}
 
           <SummaryRow label="Images" value={`${pkg.images?.length || 0} uploaded`} />
           <SummaryRow label="General Inclusions" value={`${pkg.inclusions?.length || 0} items`} />
@@ -972,7 +1013,7 @@ function StepPreview({ pkg }) {
               <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full">{pkg.type}</span>
               {pkg.duration && (
                 <span className="bg-accent/10 text-accent text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {pkg.duration.nights}N / {pkg.duration.days}D
+                  {pkg.duration.nights} {pkg.duration.nights === 1 ? 'Night' : 'Nights'}
                 </span>
               )}
             </div>

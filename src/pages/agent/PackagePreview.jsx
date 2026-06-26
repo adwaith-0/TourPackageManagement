@@ -140,7 +140,7 @@ export default function PackagePreview() {
             <span className="bg-primary/10 text-primary text-xs font-bold px-3 py-1 rounded-full">{pkg.type}</span>
             {pkg.duration && (
               <span className="bg-accent/10 text-accent text-xs font-bold px-3 py-1 rounded-full">
-                {pkg.duration.nights}N / {pkg.duration.days}D
+                {pkg.duration.nights} {pkg.duration.nights === 1 ? 'Night' : 'Nights'}
               </span>
             )}
           </div>
@@ -226,6 +226,48 @@ export default function PackagePreview() {
                 </h2>
                 <div className="bg-white rounded-xl border border-surface-container-high p-5 shadow-soft">
                   <p className="text-sm text-on-surface leading-relaxed whitespace-pre-wrap">{pkg.shoppingTips}</p>
+                </div>
+              </section>
+            )}
+
+            {/* Payment Details */}
+            {pkg.paymentDetails && (pkg.paymentDetails.upiId || pkg.paymentDetails.accountNumber) && (
+              <section className="bg-white rounded-xl border border-surface-container-high p-5 shadow-soft">
+                <h2 className="text-lg font-bold text-primary mb-3 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-accent font-filled text-[20px]">payments</span>
+                  Payment Details
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2">
+                  {pkg.paymentDetails.upiId && (
+                    <div className="flex justify-between items-center py-2 border-b border-surface-container-high">
+                      <span className="text-xs font-semibold text-outline">UPI ID</span>
+                      <span className="text-xs font-bold text-primary font-mono select-all bg-accent/5 text-accent px-2 py-0.5 rounded border border-accent/10">{pkg.paymentDetails.upiId}</span>
+                    </div>
+                  )}
+                  {pkg.paymentDetails.upiPhoneNumber && (
+                    <div className="flex justify-between items-center py-2 border-b border-surface-container-high">
+                      <span className="text-xs font-semibold text-outline">UPI Phone Number</span>
+                      <span className="text-xs font-bold text-primary">{pkg.paymentDetails.upiPhoneNumber}</span>
+                    </div>
+                  )}
+                  {pkg.paymentDetails.bank && (
+                    <div className="flex justify-between items-center py-2 border-b border-surface-container-high">
+                      <span className="text-xs font-semibold text-outline">Bank Name</span>
+                      <span className="text-xs font-bold text-primary">{pkg.paymentDetails.bank}</span>
+                    </div>
+                  )}
+                  {pkg.paymentDetails.accountNumber && (
+                    <div className="flex justify-between items-center py-2 border-b border-surface-container-high">
+                      <span className="text-xs font-semibold text-outline">Account Number</span>
+                      <span className="text-xs font-bold text-primary font-mono select-all bg-surface-container px-2 py-0.5 rounded">{pkg.paymentDetails.accountNumber}</span>
+                    </div>
+                  )}
+                  {pkg.paymentDetails.ifsc && (
+                    <div className="flex justify-between items-center py-2 border-b border-surface-container-high">
+                      <span className="text-xs font-semibold text-outline">IFSC Code</span>
+                      <span className="text-xs font-bold text-primary font-mono select-all bg-surface-container px-2 py-0.5 rounded">{pkg.paymentDetails.ifsc}</span>
+                    </div>
+                  )}
                 </div>
               </section>
             )}
