@@ -194,7 +194,11 @@ export class PackageService {
         }
         if (place && place.trim()) {
             const placeTrimmed = place.trim();
-            filter.place = new RegExp(PackageService.escapeRegex(placeTrimmed), 'i');
+            const regex = new RegExp(PackageService.escapeRegex(placeTrimmed), 'i');
+            filter.$or = [
+                { place: regex },
+                { packageName: regex }
+            ];
         }
         const results = await Package.find(filter).lean<PackageDocument[]>();
         return results;
