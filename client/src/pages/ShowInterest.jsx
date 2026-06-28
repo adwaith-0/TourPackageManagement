@@ -205,24 +205,59 @@ export default function ShowInterest() {
     return Object.keys(errs).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState("")
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (hasExisting) return
     if (!validate()) return
 
-    const refNumber = generateRefNumber()
+    setSubmitting(true)
+    setSubmitError("")
 
-    dispatch({
-      type: "ADD_INQUIRY",
-      payload: {
+    try {
+      const payload = {
         packageId: pkg.id,
-        packageTitle: pkg.title,
-        refNumber,
-        ...form,
-      },
-    })
+        costPackage: form.tier || "Standard",
+        name: form.customerName.trim(),
+        email: form.email.trim(),
+        phoneNumber: form.phone.trim(),
+        travelerCount: parseInt(form.travelers) || 1,
+        departureDate: form.fromDate || today,
+        fromLocation: form.fromPlace.trim() || "Not specified",
+        message: form.specialRequirements.trim() || "Interested in this package.",
+      };
 
-    navigate("/inquiry-success", { state: { refNumber, packageTitle: pkg.title } })
+      const response = await fetch("http://localhost:3001/enquiries/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        const refNumber = result.data?.enquiryId || generateRefNumber();
+        dispatch({
+          type: "ADD_INQUIRY",
+          payload: {
+            packageId: pkg.id,
+            packageTitle: pkg.title,
+            refNumber,
+            ...form,
+          },
+        });
+        navigate("/inquiry-success", { state: { refNumber, packageTitle: pkg.title } })
+      } else {
+        setSubmitError(result.errorMessage || result.message || "Failed to submit inquiry.");
+      }
+    } catch (err) {
+      console.error(err);
+      setSubmitError("Could not connect to server. Is the backend running?");
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -348,13 +383,19 @@ export default function ShowInterest() {
               </label>
 
               {/* Submit */}
+              {submitError && (
+                <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px]">error</span>
+                  <span>{submitError}</span>
+                </div>
+              )}
               <button 
                 type="submit" 
-                disabled={hasExisting}
+                disabled={hasExisting || submitting}
                 className="w-full py-4 bg-accent text-white font-bold rounded-xl text-base hover:bg-accent/90 transition-all cta-glow flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="material-symbols-outlined text-[20px]">send</span>
-                Send Inquiry
+                {submitting ? "Sending Inquiry..." : "Send Inquiry"}
               </button>
 
               <p className="text-xs text-on-surface-variant text-center">
