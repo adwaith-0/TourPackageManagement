@@ -143,8 +143,6 @@ export class UserService {
             throw err;
         }
 
-        await User.updateOne({ userId: user.userId }, { $set: { type: 'Agent' } });
-
         return {
             status: 'ok',
             agent: {
@@ -172,12 +170,29 @@ export class UserService {
             { new: true, runValidators: true }
         ).lean<AgentDocument | null>();
 
+        if (updatedAgent) {
+            const userType = status === 'Approved' ? 'Agent' : 'Traveler';
+            await User.updateOne({ userId: trimmedUserId }, { $set: { type: userType } });
+        }
+
         return updatedAgent;
     }
 
-    static async listAgents(status?: AgentStatus): Promise<AgentDocument[]> {
+    static async listAgents(status?: AgentStatus): Promise<any[]> {
         const filter = status ? { status } : {};
-        const agents = await Agent.find(filter).lean<AgentDocument[]>();
-        return agents;
+        const agents = await Agent.find(filter).lean();
+        
+        const agentsWithUsers = await Promise.all(agents.map(async (agent) => {
+            const user = await User.findOne({ userId: agent.userId }).lean();
+            return {
+                ...agent,
+                id: agent.userId,
+                name: user ? user.name : 'Unknown User',
+                email: user ? user.email : '',
+                phone: user ? user.phoneNumber : '',
+            };
+        }));
+        
+        return agentsWithUsers;
     }
 }

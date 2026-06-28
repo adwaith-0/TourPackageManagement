@@ -34,6 +34,7 @@ export default function AgentApplication() {
 
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.id]: e.target.value });
@@ -78,8 +79,7 @@ export default function AgentApplication() {
       const result = await response.json();
 
       if (result.success) {
-        dispatch({ type: "UPGRADE_TO_AGENT" });
-        navigate("/agent/dashboard");
+        setIsSubmitted(true);
       } else {
         setError(result.errorMessage || result.message || "Agent registration failed.");
       }
@@ -92,6 +92,26 @@ export default function AgentApplication() {
   };
 
   if (!state.user) return null;
+
+  if (isSubmitted) {
+    return (
+      <div className="bg-background text-on-background min-h-screen flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md bg-surface border border-outline-variant p-8 rounded-2xl shadow-lg flex flex-col items-center justify-center">
+          <span className="material-symbols-outlined text-[64px] text-green-600 mb-4">check_circle</span>
+          <h2 className="text-2xl font-bold mb-2">Application Submitted!</h2>
+          <p className="text-on-surface-variant text-sm mb-6 leading-relaxed">
+            Your application to become a verified agent has been successfully submitted. It is now pending review by the Super Admin. You will be able to access the Agent Portal once your application is approved.
+          </p>
+          <button 
+            onClick={() => navigate("/")} 
+            className="w-full py-3 bg-primary text-white rounded-lg font-bold hover:bg-primary/95 transition-colors cursor-pointer"
+          >
+            Return to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-background text-on-background min-h-screen flex flex-col">

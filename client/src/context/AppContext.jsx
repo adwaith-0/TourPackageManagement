@@ -265,6 +265,13 @@ function appReducer(state, action) {
     }
 
     // ── Agent Applications ───────────────────────────────────
+    case "SET_AGENT_APPLICATIONS": {
+      return {
+        ...state,
+        agentApplications: action.payload
+      }
+    }
+
     case "APPLY_FOR_AGENT": {
       const newApp = {
         ...(action.payload || {}),

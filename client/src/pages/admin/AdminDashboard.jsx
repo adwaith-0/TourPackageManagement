@@ -7,20 +7,72 @@ export default function AdminDashboard() {
   const navigate = useNavigate()
   const [filterStatus, setFilterStatus] = useState("all")
   const [selectedAppId, setSelectedAppId] = useState(null)
+  const [apps, setApps] = useState([])
 
-  // Authentication check
+  const fetchApps = async () => {
+    try {
+      const response = await fetch("http://localhost:3001/users/agent/list")
+      const result = await response.json()
+      if (result.success) {
+        const mapped = result.data.map(app => ({
+          ...app,
+          id: app.userId,
+          status: app.status === 'New' ? 'pending' : app.status === 'Approved' ? 'approved' : 'rejected'
+        }))
+        setApps(mapped)
+      }
+    } catch (err) {
+      console.error("Failed to load applications:", err)
+    }
+  }
+
+  const handleApprove = async (userId) => {
+    try {
+      const response = await fetch(`http://localhost:3001/users/agent/approve?userId=${userId}`, {
+        method: "PUT"
+      })
+      const result = await response.json()
+      if (result.success) {
+        fetchApps()
+      } else {
+        alert(result.errorMessage || "Failed to approve agent")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Failed to connect to server")
+    }
+  }
+
+  const handleSuspend = async (userId) => {
+    try {
+      const response = await fetch(`http://localhost:3001/users/agent/suspend?userId=${userId}`, {
+        method: "PUT"
+      })
+      const result = await response.json()
+      if (result.success) {
+        fetchApps()
+      } else {
+        alert(result.errorMessage || "Failed to suspend/reject agent")
+      }
+    } catch (err) {
+      console.error(err)
+      alert("Failed to connect to server")
+    }
+  }
+
+  // Authentication & data fetch check
   useEffect(() => {
     if (!state.user || state.user.type !== "superadmin") {
       dispatch({ type: "OPEN_LOGIN_MODAL", payload: { accountType: "personal" } })
       navigate("/", { replace: true })
+    } else {
+      fetchApps()
     }
   }, [state.user, navigate, dispatch])
 
   if (!state.user || state.user.type !== "superadmin") return null
 
-  const agentApplications = state.agentApplications || []
-
-  const displayedAgents = agentApplications.filter(a => {
+  const displayedAgents = apps.filter(a => {
     if (filterStatus === "all") return true
     return a.status === filterStatus
   })
@@ -133,14 +185,14 @@ export default function AdminDashboard() {
                         {app.status === "pending" && (
                           <>
                             <button
-                              onClick={() => dispatch({ type: "APPROVE_AGENT_APPLICATION", payload: { id: app.id, userId: app.userId } })}
+                              onClick={() => handleApprove(app.userId)}
                               className="flex-1 sm:flex-none py-2 px-4 bg-green-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-green-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
                             >
                               <span className="material-symbols-outlined text-[14px]">check</span>
                               Approve
                             </button>
                             <button
-                              onClick={() => dispatch({ type: "REJECT_AGENT_APPLICATION", payload: { id: app.id } })}
+                              onClick={() => handleSuspend(app.userId)}
                               className="flex-1 sm:flex-none py-2 px-4 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-red-100 transition-colors flex items-center justify-center gap-1"
                             >
                               <span className="material-symbols-outlined text-[14px]">close</span>
@@ -156,9 +208,9 @@ export default function AdminDashboard() {
                             </div>
                             <button
                               onClick={() => {
-                                if (window.confirm(`Are you sure you want to remove agent "${app.agencyName || app.agency_name || app.name || 'Unknown'}"? This will revoke their agent status and archive all their packages.`)) {
-                                  dispatch({ type: "REMOVE_AGENT", payload: { id: app.id, userId: app.userId } })
-                                }
+                                  if (window.confirm(`Are you sure you want to remove agent "${app.agencyName || app.agency_name || app.name || 'Unknown'}"? This will revoke their agent status and archive all their packages.`)) {
+                                      handleSuspend(app.userId)
+                                  }
                               }}
                               className="flex-1 sm:flex-none py-2 px-4 bg-red-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-red-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
                             >
@@ -174,7 +226,7 @@ export default function AdminDashboard() {
                               Rejected
                             </div>
                             <button
-                              onClick={() => dispatch({ type: "APPROVE_AGENT_APPLICATION", payload: { id: app.id, userId: app.userId } })}
+                              onClick={() => handleApprove(app.userId)}
                               className="flex-1 sm:flex-none py-2 px-4 bg-green-600 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-green-700 transition-colors flex items-center justify-center gap-1 shadow-sm"
                             >
                               <span className="material-symbols-outlined text-[14px]">check</span>
