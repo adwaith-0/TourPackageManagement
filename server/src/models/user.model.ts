@@ -1,6 +1,6 @@
 import mongoose, { Schema } from 'mongoose';
 
-export type UserType = 'Traveler' | 'Agent';
+export type UserType = 'Traveler' | 'Agent' | 'superadmin';
 
 export type SignupBody = {
     name?: unknown;
