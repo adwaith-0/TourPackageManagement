@@ -300,31 +300,6 @@ export class PackageController {
             message: 'Packages fetched successfully.',
         };
 
-        if (!ValidationUtil.isNonEmptyString(place)) {
-            response.code = 400;
-            response.success = false;
-            response.errorMessage = 'Place is required.';
-            response.message = 'Failed to fetch packages.';
-            return response;
-        }
-
-        if (!ValidationUtil.isNonEmptyString(date)) {
-            response.code = 400;
-            response.success = false;
-            response.errorMessage = 'Date is required.';
-            response.message = 'Failed to fetch packages.';
-            return response;
-        }
-
-        const queryDate = PackageController.parseDate(date);
-        if (!queryDate) {
-            response.code = 400;
-            response.success = false;
-            response.errorMessage = 'Date is invalid.';
-            response.message = 'Failed to fetch packages.';
-            return response;
-        }
-
         const parsedStatus = PackageController.parseStatus(status);
         if (parsedStatus === 'invalid') {
             response.code = 400;
@@ -334,15 +309,32 @@ export class PackageController {
             return response;
         }
 
-        try {
-            const docs = await PackageService.listPackages(place, parsedStatus ?? undefined);
+        const placeStr = ValidationUtil.isNonEmptyString(place) ? place : undefined;
 
-            const matches = docs.filter((doc) => {
-                const start = PackageController.parseDate(doc.startDate);
-                const end = PackageController.parseDate(doc.endDate);
-                if (!start || !end) return false;
-                return queryDate.getTime() >= start.getTime() && queryDate.getTime() <= end.getTime();
-            });
+        let queryDate: Date | null = null;
+        if (ValidationUtil.isNonEmptyString(date)) {
+            queryDate = PackageController.parseDate(date);
+            if (!queryDate) {
+                response.code = 400;
+                response.success = false;
+                response.errorMessage = 'Date is invalid.';
+                response.message = 'Failed to fetch packages.';
+                return response;
+            }
+        }
+
+        try {
+            const docs = await PackageService.listPackages(placeStr, parsedStatus ?? undefined);
+
+            let matches = docs;
+            if (queryDate) {
+                matches = docs.filter((doc) => {
+                    const start = PackageController.parseDate(doc.startDate);
+                    const end = PackageController.parseDate(doc.endDate);
+                    if (!start || !end) return false;
+                    return queryDate!.getTime() >= start.getTime() && queryDate!.getTime() <= end.getTime();
+                });
+            }
 
             const items = matches.map((doc) => PackageService.toListItem(doc));
             return PackageController.buildListResponse(items);

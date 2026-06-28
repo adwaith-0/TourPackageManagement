@@ -187,11 +187,15 @@ export class PackageService {
         return updated;
     }
 
-    static async listPackages(place: string, status?: PackageStatus): Promise<PackageDocument[]> {
-        const placeTrimmed = place.trim();
-        const placeRegex = new RegExp(`^${PackageService.escapeRegex(placeTrimmed)}$`, 'i');
-
-        const filter = status ? { place: placeRegex, status } : { place: placeRegex };
+    static async listPackages(place?: string, status?: PackageStatus): Promise<PackageDocument[]> {
+        const filter: any = {};
+        if (status) {
+            filter.status = status;
+        }
+        if (place && place.trim()) {
+            const placeTrimmed = place.trim();
+            filter.place = new RegExp(PackageService.escapeRegex(placeTrimmed), 'i');
+        }
         const results = await Package.find(filter).lean<PackageDocument[]>();
         return results;
     }
