@@ -52,6 +52,8 @@ export default function ShowInterest() {
     whatsappUpdates: true,
   })
   const [errors, setErrors] = useState({})
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState("")
 
   useEffect(() => {
     let active = true
@@ -204,9 +206,6 @@ export default function ShowInterest() {
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
-
-  const [submitting, setSubmitting] = useState(false)
-  const [submitError, setSubmitError] = useState("")
 
   const handleSubmit = async (e) => {
     e.preventDefault()
