@@ -1,8 +1,9 @@
 import { UserService } from '../services/user.service.js';
 import { type PublicUserDocument, UserDocument } from '../models/user.model.js';
-import { type AgentDocument } from '../models/agent.model.js';
+import { type AgentDocument, type AgentStatus } from '../models/agent.model.js';
 import { ValidationUtil } from '../utilities/validation.util.js';
 import { Response } from '../models/response.model.js';
+import { CollectionResponse } from '../models/response-collection.model.js';
 
 type SignupBody = {
     name?: unknown;
@@ -171,5 +172,125 @@ export class UserController {
             response.message = 'Agent registration failed.';
             return response;
         }
+    }
+
+    static async approveAgent(userId: unknown) {
+        let response: Response<AgentDocument> = {
+            code: 200,
+            success: true,
+            message: 'Agent approved successfully.',
+        };
+
+        if (!ValidationUtil.isNonEmptyString(userId)) {
+            response.code = 400;
+            response.success = false;
+            response.errorMessage = 'UserId is required.';
+            response.message = 'Failed to approve agent.';
+            return response;
+        }
+
+        try {
+            const agent = await UserService.updateAgentStatus(userId, 'Approved');
+            if (!agent) {
+                response.code = 404;
+                response.success = false;
+                response.errorMessage = 'Agent not found.';
+                response.message = 'Failed to approve agent.';
+                return response;
+            }
+
+            response.code = 200;
+            response.success = true;
+            response.errorMessage = '';
+            response.message = 'Agent approved successfully.';
+            response.data = agent;
+            return response;
+        } catch {
+            response.code = 500;
+            response.success = false;
+            response.errorMessage = 'Failed to approve agent.';
+            response.message = 'Failed to approve agent.';
+            return response;
+        }
+    }
+
+    static async suspendAgent(userId: unknown) {
+        let response: Response<AgentDocument> = {
+            code: 200,
+            success: true,
+            message: 'Agent suspended successfully.',
+        };
+
+        if (!ValidationUtil.isNonEmptyString(userId)) {
+            response.code = 400;
+            response.success = false;
+            response.errorMessage = 'UserId is required.';
+            response.message = 'Failed to suspend agent.';
+            return response;
+        }
+
+        try {
+            const agent = await UserService.updateAgentStatus(userId, 'Suspended');
+            if (!agent) {
+                response.code = 404;
+                response.success = false;
+                response.errorMessage = 'Agent not found.';
+                response.message = 'Failed to suspend agent.';
+                return response;
+            }
+
+            response.code = 200;
+            response.success = true;
+            response.errorMessage = '';
+            response.message = 'Agent suspended successfully.';
+            response.data = agent;
+            return response;
+        } catch {
+            response.code = 500;
+            response.success = false;
+            response.errorMessage = 'Failed to suspend agent.';
+            response.message = 'Failed to suspend agent.';
+            return response;
+        }
+    }
+
+    static async listAgents(status: unknown) {
+        let response: CollectionResponse<AgentDocument> = {
+            code: 200,
+            success: true,
+            message: 'Agents fetched successfully.',
+        };
+
+        const parsedStatus = UserController.parseAgentStatus(status);
+        if (parsedStatus === 'invalid') {
+            response.code = 400;
+            response.success = false;
+            response.errorMessage = 'Status must be New, Approved or Suspended.';
+            response.message = 'Failed to fetch agents.';
+            return response;
+        }
+
+        try {
+            const agents = await UserService.listAgents(parsedStatus ?? undefined);
+            response.code = 200;
+            response.success = true;
+            response.errorMessage = '';
+            response.message = 'Agents fetched successfully.';
+            response.data = agents;
+            response.count = agents.length;
+            return response;
+        } catch {
+            response.code = 500;
+            response.success = false;
+            response.errorMessage = 'Failed to fetch agents.';
+            response.message = 'Failed to fetch agents.';
+            return response;
+        }
+    }
+
+    private static parseAgentStatus(value: unknown): AgentStatus | null | 'invalid' {
+        if (value === undefined || value === null || value === '') return null;
+        if (value === 'New' || value === 'Approved' || value === 'Suspended') return value;
+        return 'invalid';
     }
 }

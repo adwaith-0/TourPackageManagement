@@ -1,5 +1,7 @@
 import mongoose, { Schema } from 'mongoose';
 
+export type AgentStatus = 'New' | 'Approved' | 'Suspended';
+
 export type AgentDocument = {
     agencyName: string;
     website: string;
@@ -8,6 +10,7 @@ export type AgentDocument = {
     panNumber: string;
     specialities: string;
     userId: string;
+    status: AgentStatus;
     createdAt: Date;
     updatedAt: Date;
 };
@@ -21,6 +24,7 @@ const agentSchema = new Schema<AgentDocument>(
         panNumber: { type: String, required: true, trim: true },
         specialities: { type: String, required: true, trim: true, maxlength: 500 },
         userId: { type: String, required: true, unique: true, index: true },
+        status: { type: String, required: true, enum: ['New', 'Approved', 'Suspended'], default: 'New' },
     },
     { timestamps: true }
 );

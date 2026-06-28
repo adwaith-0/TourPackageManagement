@@ -293,7 +293,7 @@ export class PackageController {
         }
     }
 
-    static async list(place: unknown, date: unknown) {
+    static async list(place: unknown, date: unknown, status: unknown) {
         let response: CollectionResponse<PackageListItem> = {
             code: 200,
             success: true,
@@ -325,8 +325,17 @@ export class PackageController {
             return response;
         }
 
+        const parsedStatus = PackageController.parseStatus(status);
+        if (parsedStatus === 'invalid') {
+            response.code = 400;
+            response.success = false;
+            response.errorMessage = 'Status must be Active or Inactive.';
+            response.message = 'Failed to fetch packages.';
+            return response;
+        }
+
         try {
-            const docs = await PackageService.listPackages(place);
+            const docs = await PackageService.listPackages(place, parsedStatus ?? undefined);
 
             const matches = docs.filter((doc) => {
                 const start = PackageController.parseDate(doc.startDate);

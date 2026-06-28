@@ -4,6 +4,7 @@ import 'dotenv/config';
 import mongoose from 'mongoose';
 import UserRoutes from './routes/user.routes.js';
 import PackageRoutes from './routes/package.routes.js';
+import EnquiryRoutes from './routes/enquiry.routes.js';
 
 const app = express();
 const port = process.env.PORT || 4000;
@@ -25,6 +26,10 @@ app.use('/users', UserRoutes.router(), (req, res) => {
 });
 
 app.use('/packages', PackageRoutes.router(), (req, res) => {
+    res.status(404).send('Not Found');
+});
+
+app.use('/enquiries', EnquiryRoutes.router(), (req, res) => {
     res.status(404).send('Not Found');
 });
 

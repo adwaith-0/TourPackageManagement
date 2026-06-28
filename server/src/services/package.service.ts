@@ -187,11 +187,12 @@ export class PackageService {
         return updated;
     }
 
-    static async listPackages(place: string): Promise<PackageDocument[]> {
+    static async listPackages(place: string, status?: PackageStatus): Promise<PackageDocument[]> {
         const placeTrimmed = place.trim();
         const placeRegex = new RegExp(`^${PackageService.escapeRegex(placeTrimmed)}$`, 'i');
 
-        const results = await Package.find({ place: placeRegex, status: 'Active' }).lean<PackageDocument[]>();
+        const filter = status ? { place: placeRegex, status } : { place: placeRegex };
+        const results = await Package.find(filter).lean<PackageDocument[]>();
         return results;
     }
 

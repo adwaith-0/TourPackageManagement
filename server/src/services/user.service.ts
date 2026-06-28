@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { User, type PublicUserDocument, UserDocument, type UserType } from '../models/user.model.js';
-import { Agent, type AgentDocument } from '../models/agent.model.js';
+import { Agent, type AgentDocument, type AgentStatus } from '../models/agent.model.js';
 
 export type SignupInput = {
     name: string;
@@ -123,6 +123,7 @@ export class UserService {
                 panNumber: input.panNumber.trim(),
                 specialities: input.specialities.trim(),
                 userId: user.userId,
+                status: 'New',
             });
         } catch (err) {
             const anyErr = err as { code?: unknown };
@@ -142,9 +143,29 @@ export class UserService {
                 panNumber: createdAgent.panNumber,
                 specialities: createdAgent.specialities,
                 userId: createdAgent.userId,
+                status: createdAgent.status,
                 createdAt: createdAgent.createdAt,
                 updatedAt: createdAgent.updatedAt,
             },
         };
+    }
+
+    static async updateAgentStatus(userId: string, status: AgentStatus): Promise<AgentDocument | null> {
+        const trimmedUserId = userId.trim();
+        if (!trimmedUserId) return null;
+
+        const updatedAgent = await Agent.findOneAndUpdate(
+            { userId: trimmedUserId },
+            { $set: { status } },
+            { new: true, runValidators: true }
+        ).lean<AgentDocument | null>();
+
+        return updatedAgent;
+    }
+
+    static async listAgents(status?: AgentStatus): Promise<AgentDocument[]> {
+        const filter = status ? { status } : {};
+        const agents = await Agent.find(filter).lean<AgentDocument[]>();
+        return agents;
     }
 }

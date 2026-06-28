@@ -30,7 +30,8 @@ export default class PackageRoutes {
         router.get('/list', async (req, res) => {
             const place = typeof req.query.place === 'string' ? req.query.place : undefined;
             const date = typeof req.query.date === 'string' ? req.query.date : undefined;
-            const response = await PackageController.list(place, date);
+            const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+            const response = await PackageController.list(place, date, status);
             return res.status(response.code).json(response);
         });
 
