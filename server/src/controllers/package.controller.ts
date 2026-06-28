@@ -330,9 +330,8 @@ export class PackageController {
             if (queryDate) {
                 matches = docs.filter((doc) => {
                     const start = PackageController.parseDate(doc.startDate);
-                    const end = PackageController.parseDate(doc.endDate);
-                    if (!start || !end) return false;
-                    return queryDate!.getTime() >= start.getTime() && queryDate!.getTime() <= end.getTime();
+                    if (!start) return false;
+                    return queryDate!.getTime() === start.getTime();
                 });
             }
 
