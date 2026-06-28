@@ -57,9 +57,13 @@ export default function AgentApplication() {
     try {
       // Backend validations require non-empty strings for website, licenceNumber, specialities.
       // We dynamically generate safe fallbacks if they are empty in the form.
-      const safeWebsite = formData.website.trim() || `https://www.${formData.agency_name.replace(/\s+/g, "").toLowerCase()}.com`;
-      const safeLicence = formData.license_number.trim() || `LIC${Math.floor(100000 + Math.random() * 900000)}`;
-      const safeSpecialities = formData.specialties.trim() || "Tour Packages, Sightseeing";
+      let websiteVal = (formData.website || "").trim();
+      if (websiteVal && !/^https?:\/\//i.test(websiteVal)) {
+        websiteVal = "https://" + websiteVal;
+      }
+      const safeWebsite = websiteVal || `https://www.${formData.agency_name.replace(/\s+/g, "").toLowerCase()}.com`;
+      const safeLicence = (formData.license_number || "").trim() || `LIC${Math.floor(100000 + Math.random() * 900000)}`;
+      const safeSpecialities = (formData.specialties || "").trim() || "Tour Packages, Sightseeing";
       const parsedExperience = parseInt(formData.experience) || 0;
 
       const response = await fetch("http://localhost:3001/users/agent/register", {
@@ -85,7 +89,7 @@ export default function AgentApplication() {
       }
     } catch (err) {
       console.error("Agent registration error:", err);
-      setError("Could not connect to server. Is the backend running?");
+      setError("Registration failed: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -215,7 +219,7 @@ export default function AgentApplication() {
                       <span className="">Website</span>
                       <span className="text-on-surface-variant font-normal">Optional</span>
                     </label>
-                    <input value={formData.website} onChange={handleChange} className="bg-surface-container-low border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-on-surface focus:border-tertiary focus:ring-1 focus:ring-tertiary focus:outline-none transition-shadow" id="website" placeholder="https://youragency.com" type="url" />
+                    <input value={formData.website} onChange={handleChange} className="bg-surface-container-low border border-outline-variant rounded-lg p-3 font-body-md text-body-md text-on-surface focus:border-tertiary focus:ring-1 focus:ring-tertiary focus:outline-none transition-shadow" id="website" placeholder="https://youragency.com" type="text" />
                   </div>
                   <div className="flex flex-col gap-1">
                     <label className="font-label-md text-label-md text-on-surface flex justify-between" htmlFor="experience">
