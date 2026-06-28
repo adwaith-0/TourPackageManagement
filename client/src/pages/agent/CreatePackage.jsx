@@ -11,6 +11,18 @@ import { createPackageAPI, updatePackageAPI, getPackageDetailsAPI } from "../../
 
 const STEPS = ["Basic Info", "Itinerary", "Gallery", "Inclusions", "Preview", "Publish"]
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
 
 function ensureNewFormat(p, user) {
   const blank = {
@@ -1014,6 +1026,12 @@ function StepPreview({ pkg }) {
               {pkg.duration && (
                 <span className="bg-accent/10 text-accent text-[10px] font-bold px-2 py-0.5 rounded-full">
                   {pkg.duration.nights} {pkg.duration.nights === 1 ? 'Night' : 'Nights'}
+                </span>
+              )}
+              {pkg.startDate && pkg.endDate && (
+                <span className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[12px]">calendar_month</span>
+                  {formatDate(pkg.startDate)} - {formatDate(pkg.endDate)}
                 </span>
               )}
             </div>

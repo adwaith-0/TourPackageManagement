@@ -10,6 +10,18 @@ import PriceSidebar from "../components/package/PriceSidebar"
 import { useApp } from "../context/AppContext"
 import { getPackageDetailsAPI } from "../utils/packageApi"
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return "";
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  } catch (e) {
+    return dateStr;
+  }
+}
+
 export default function PackageDetail() {
   const { id } = useParams()
   const location = useLocation()
@@ -122,6 +134,12 @@ export default function PackageDetail() {
             {pkg.duration && (
               <span className="bg-accent/10 text-accent text-xs font-bold px-3 py-1 rounded-full">
                 {pkg.duration.nights} {pkg.duration.nights === 1 ? 'Night' : 'Nights'}
+              </span>
+            )}
+            {pkg.startDate && pkg.endDate && (
+              <span className="bg-primary/10 text-primary text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">calendar_month</span>
+                {formatDate(pkg.startDate)} - {formatDate(pkg.endDate)}
               </span>
             )}
             {pkg.tags?.map((tag) => (
