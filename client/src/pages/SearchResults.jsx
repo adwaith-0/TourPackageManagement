@@ -56,56 +56,11 @@ export default function SearchResults() {
     setLoading(true)
     setError(null)
 
-    if (!filters.to || !filters.departure) {
-      // Load all packages by querying known destinations for today's date
-      const defaultDestinations = ['Alappuzha']
-      const customDestinations = []
-      try {
-        const stored = localStorage.getItem('touriq_custom_destinations')
-        if (stored) {
-          customDestinations.push(...JSON.parse(stored))
-        }
-      } catch (e) {
-        console.error(e)
-      }
-      
-      const destinations = [...new Set([...defaultDestinations, ...customDestinations])]
-      const today = new Date()
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-      const formattedDate = `${String(today.getDate()).padStart(2, '0')}-${months[today.getMonth()]}-${today.getFullYear()}`
+    // Convert date filter to backend expected 'DD-MMM-YYYY' format, or keep it undefined if empty
+    const formattedDate = filters.departure ? toBackendDate(filters.departure) : undefined
 
-      Promise.all(
-        destinations.map(dest => listPackagesAPI(dest, formattedDate).catch(() => []))
-      ).then((results) => {
-        if (active) {
-          const allPkgs = results.flat()
-          // Deduplicate packages by packageId (id)
-          const seen = new Set()
-          const uniquePkgs = allPkgs.filter(p => {
-            if (seen.has(p.id)) return false
-            seen.add(p.id)
-            return true
-          })
-          setPackages(uniquePkgs)
-          setLoading(false)
-        }
-      }).catch((err) => {
-        if (active) {
-          console.error("Failed to fetch all packages:", err)
-          setError("Failed to load packages.")
-          setPackages([])
-          setLoading(false)
-        }
-      })
-
-      return () => {
-        active = false
-      }
-    }
-
-    const formattedDate = toBackendDate(filters.departure)
-
-    listPackagesAPI(filters.to, formattedDate)
+    // Query backend using optional parameters (allows fetching all packages when fields are blank)
+    listPackagesAPI(filters.to || undefined, formattedDate)
       .then((data) => {
         if (active) {
           setPackages(data)
@@ -389,10 +344,10 @@ export default function SearchResults() {
               <p className="text-on-surface-variant text-sm mb-6">{error}</p>
               <button 
                 onClick={() => {
-                  const formattedDate = toBackendDate(filters.departure)
+                  const formattedDate = filters.departure ? toBackendDate(filters.departure) : undefined
                   setLoading(true)
                   setError(null)
-                  listPackagesAPI(filters.to, formattedDate)
+                  listPackagesAPI(filters.to || undefined, formattedDate)
                     .then(setPackages)
                     .catch(err => setError(err.message || "Failed to load packages"))
                     .finally(() => setLoading(false))
@@ -401,12 +356,6 @@ export default function SearchResults() {
               >
                 Retry Search
               </button>
-            </div>
-          ) : (!filters.to || !filters.departure) && packages.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-surface-container-high p-12 text-center shadow-soft">
-              <span className="material-symbols-outlined text-[64px] text-accent mb-4 block">search_insights</span>
-              <h3 className="text-lg font-bold text-primary mb-2">Search Tour Packages</h3>
-              <p className="text-on-surface-variant text-sm max-w-md mx-auto">Please enter both a destination and departure date in the search bar above to fetch live packages from the server.</p>
             </div>
           ) : results.length === 0 ? (
             <div className="bg-white rounded-2xl border border-surface-container-high p-12 text-center shadow-soft">

@@ -187,11 +187,17 @@ export class PackageService {
         return updated;
     }
 
+    /**
+     * Lists active or inactive packages, with optional location/title search.
+     * Matches the search term against either the package's destination ('place') 
+     * or its 'packageName' using a case-insensitive partial match regex.
+     */
     static async listPackages(place?: string, status?: PackageStatus): Promise<PackageDocument[]> {
         const filter: any = {};
         if (status) {
             filter.status = status;
         }
+        // If a search query is provided, match against either destination (place) or tour name (packageName)
         if (place && place.trim()) {
             const placeTrimmed = place.trim();
             const regex = new RegExp(PackageService.escapeRegex(placeTrimmed), 'i');

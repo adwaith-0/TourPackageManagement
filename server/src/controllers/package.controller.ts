@@ -293,6 +293,10 @@ export class PackageController {
         }
     }
 
+    /**
+     * Lists active or inactive tour packages.
+     * Supports optional 'place' (partial match on name/destination) and 'date' (exact departure date match).
+     */
     static async list(place: unknown, date: unknown, status: unknown) {
         let response: CollectionResponse<PackageListItem> = {
             code: 200,
@@ -309,6 +313,7 @@ export class PackageController {
             return response;
         }
 
+        // Place and date are now optional query parameters
         const placeStr = ValidationUtil.isNonEmptyString(place) ? place : undefined;
 
         let queryDate: Date | null = null;
@@ -327,6 +332,7 @@ export class PackageController {
             const docs = await PackageService.listPackages(placeStr, parsedStatus ?? undefined);
 
             let matches = docs;
+            // If departure date is provided, filter by exact start/departure date match to filter out pre-departed tours
             if (queryDate) {
                 matches = docs.filter((doc) => {
                     const start = PackageController.parseDate(doc.startDate);
