@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+import { API_BASE } from "../utils/apiConfig";
 
 export default function AgentApplication() {
   const { state, dispatch } = useApp();
@@ -66,7 +67,7 @@ export default function AgentApplication() {
       const safeSpecialities = (formData.specialties || "").trim() || "Tour Packages, Sightseeing";
       const parsedExperience = parseInt(formData.experience) || 0;
 
-      const response = await fetch("http://localhost:3001/users/agent/register", {
+      const response = await fetch(`${API_BASE}/users/agent/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

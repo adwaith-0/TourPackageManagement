@@ -7,6 +7,7 @@ import WhatsAppButton from "../components/ui/WhatsAppButton"
 import { useApp } from "../context/AppContext"
 import { formatPhoneForWhatsApp } from "../utils/phone"
 import { getPackageDetailsAPI } from "../utils/packageApi"
+import { API_BASE } from "../utils/apiConfig"
 
 export default function ShowInterest() {
   const { id } = useParams()
@@ -228,7 +229,7 @@ export default function ShowInterest() {
         message: form.specialRequirements.trim() || "Interested in this package.",
       };
 
-      const response = await fetch("http://localhost:3001/enquiries/create", {
+      const response = await fetch(`${API_BASE}/enquiries/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

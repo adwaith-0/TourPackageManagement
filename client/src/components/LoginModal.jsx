@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { useApp } from "../context/AppContext"
+import { API_BASE } from "../utils/apiConfig"
 
 export default function LoginModal() {
   const navigate = useNavigate()
@@ -112,7 +113,7 @@ function LoginForm({ setView, navigate }) {
     setLoading(true)
 
     try {
-      const response = await fetch("http://localhost:3001/users/login", {
+      const response = await fetch(`${API_BASE}/users/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -223,7 +224,7 @@ function SignupForm({ setView, navigate }) {
     setLoading(true)
 
     try {
-      const response = await fetch("http://localhost:3001/users/signup", {
+      const response = await fetch(`${API_BASE}/users/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

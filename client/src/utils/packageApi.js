@@ -1,9 +1,7 @@
 // ─── Package API Service ──────────────────────────────────────────
-// All package CRUD via backend at localhost:3001.
-// Maps between backend shape (PackageDocument / PackageListItem)
-// and the frontend shape used by components.
+// Maps between backend shape (PackageDocument / PackageListItem) and the frontend shape used by components.
 
-const API_BASE = 'http://localhost:3001'
+import { API_BASE } from './apiConfig'
 
 // ─── Backend Full Document → Frontend Shape ──────────────────────
 
